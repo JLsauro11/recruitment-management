@@ -1,0 +1,609 @@
+:root {
+    --rs8-red: #ed1c24;
+    --rs8-dark: #111827;
+    --rs8-bg: #f5f7fb
+}
+
+body {
+    background: var(--rs8-bg)
+}
+
+#main {
+    padding-top: 1.5rem
+}
+
+.admin-topbar {
+    display: flex;
+    align-items: center;
+    min-height: 54px
+}
+
+.topbar-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(31, 41, 55, .06)
+}
+
+.notification-dot {
+    position: absolute;
+    top: 8px;
+    right: 9px;
+    width: 8px;
+    height: 8px;
+    background: var(--rs8-red);
+    border: 2px solid #fff;
+    border-radius: 50%
+}
+
+.admin-profile {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    background: #fff;
+    border-radius: 14px;
+    padding: .45rem .75rem;
+    box-shadow: 0 4px 16px rgba(31, 41, 55, .06)
+}
+
+.admin-profile:after {
+    margin-left: .5rem
+}
+
+.admin-profile small {
+    color: #6b7280
+}
+
+.profile-avatar, .applicant-avatar {
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-weight: 800
+}
+
+.profile-avatar {
+    width: 38px;
+    height: 38px;
+    background: var(--rs8-red);
+    color: #fff
+}
+
+.recruitment-brand {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    color: #25304a
+}
+
+.recruitment-brand .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: var(--rs8-red);
+    color: white;
+    font-size: 1.3rem;
+    font-weight: 800
+}
+
+.recruitment-brand strong, .recruitment-brand small {
+    display: block
+}
+
+.recruitment-brand strong {
+    font-size: 1rem
+}
+
+.recruitment-brand small {
+    font-size: .7rem;
+    color: #8a93a5
+}
+
+.sidebar-wrapper {
+    display: flex;
+    flex-direction: column
+}
+
+.sidebar-menu {
+    flex: 1
+}
+
+.sidebar-footer-card {
+    margin: 1rem 1.3rem 1.5rem;
+    padding: .85rem;
+    border-radius: 14px;
+    background: #f7f8fb;
+    display: flex;
+    align-items: center;
+    gap: .7rem
+}
+
+.sidebar-footer-card strong, .sidebar-footer-card small {
+    display: block
+}
+
+.sidebar-footer-card small {
+    color: #8a93a5;
+    font-size: .72rem
+}
+
+.sidebar-wrapper .menu .sidebar-item.active .sidebar-link {
+    background: var(--rs8-red)
+}
+
+.sidebar-wrapper .menu .sidebar-link:hover {
+    background: #fff1f2
+}
+
+.sidebar-wrapper .menu .sidebar-item.active .sidebar-link:hover {
+    background: var(--rs8-red)
+}
+
+.btn-primary {
+    background: var(--rs8-red);
+    border-color: var(--rs8-red)
+}
+
+.btn-primary:hover {
+    background: #c9151c;
+    border-color: #c9151c
+}
+
+.welcome-panel {
+    padding: 1.7rem 1.9rem;
+    border-radius: 20px;
+    background: linear-gradient(120deg, #161b2d, #2b3149);
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 12px 30px rgba(17, 24, 39, .15)
+}
+
+.welcome-panel h2 {
+    color: #fff;
+    margin: .3rem 0
+}
+
+.welcome-panel p {
+    color: #cbd5e1
+}
+
+.eyebrow {
+    font-size: .72rem;
+    letter-spacing: .14em;
+    font-weight: 800;
+    color: #fca5a5
+}
+
+.welcome-date {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .7rem 1rem;
+    background: rgba(255, 255, 255, .1);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 12px;
+    white-space: nowrap
+}
+
+.recruitment-stat-card, .dashboard-card {
+    border: none;
+    border-radius: 18px;
+    box-shadow: 0 7px 24px rgba(31, 41, 55, .055)
+}
+
+.recruitment-stat-card .card-body {
+    padding: 1.3rem
+}
+
+.stat-label {
+    color: #6b7280;
+    margin-bottom: .35rem;
+    font-weight: 700
+}
+
+.recruitment-stat-card h3 {
+    font-size: 1.85rem;
+    margin-bottom: .2rem
+}
+
+.recruitment-stat-card small {
+    color: #9ca3af
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 14px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+    line-height: 1;
+    overflow: hidden;
+}
+
+.stat-icon i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 24px;
+    height: 24px;
+
+    margin: 0;
+    padding: 0;
+
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.stat-icon i::before {
+    display: block;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-icon.blue {
+    background: #dbeafe;
+    color: #2563eb
+}
+
+.stat-icon.cyan {
+    background: #cffafe;
+    color: #0891b2
+}
+
+.stat-icon.orange {
+    background: #ffedd5;
+    color: #ea580c
+}
+
+.stat-icon.purple {
+    background: #ede9fe;
+    color: #7c3aed
+}
+
+.stat-icon.yellow {
+    background: #fef3c7;
+    color: #d97706
+}
+
+.stat-icon.green {
+    background: #dcfce7;
+    color: #16a34a
+}
+
+.stat-icon.red {
+    background: #fee2e2;
+    color: #dc2626
+}
+
+.stat-icon.navy {
+    background: #e0e7ff;
+    color: #3730a3
+}
+
+.dashboard-card .card-header {
+    background: #fff;
+    border: 0;
+    padding: 1.35rem 1.35rem .8rem
+}
+
+.dashboard-card .card-header h4 {
+    font-size: 1.05rem
+}
+
+.dashboard-card .card-body {
+    padding: 1.2rem 1.35rem
+}
+
+.chart-filter {
+    width: auto
+}
+
+.recruitment-table thead th {
+    font-size: .75rem;
+    letter-spacing: .03em;
+    color: #8b94a7;
+    border-bottom: 1px solid #eef1f6
+}
+
+.recruitment-table td {
+    border-bottom: 1px solid #f0f2f6;
+    padding: .95rem .5rem
+}
+
+.applicant-avatar {
+    width: 34px;
+    height: 34px;
+    background: #fff1f2;
+    color: var(--rs8-red);
+    font-size: .8rem
+}
+
+.status-badge {
+    display: inline-block;
+    padding: .35rem .65rem;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 800
+}
+
+.status-new {
+    background: #dbeafe;
+    color: #1d4ed8
+}
+
+.status-screening {
+    background: #ffedd5;
+    color: #c2410c
+}
+
+.status-interview {
+    background: #ede9fe;
+    color: #6d28d9
+}
+
+.status-exam {
+    background: #cffafe;
+    color: #0e7490
+}
+
+.status-hired {
+    background: #dcfce7;
+    color: #15803d
+}
+
+.status-default {
+    background: #e5e7eb;
+    color: #4b5563
+}
+
+.interview-item {
+    display: grid;
+    grid-template-columns: 74px 1fr auto;
+    align-items: center;
+    gap: .8rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eef1f5
+}
+
+.interview-item:last-child {
+    border-bottom: 0
+}
+
+.interview-date {
+    padding: .5rem;
+    border-radius: 12px;
+    background: #fff1f2;
+    text-align: center
+}
+
+.interview-date strong, .interview-date small, .interview-item > div:nth-child(2) strong, .interview-item > div:nth-child(2) small {
+    display: block
+}
+
+.interview-date strong {
+    color: var(--rs8-red);
+    font-size: .8rem
+}
+
+.interview-date small, .interview-item small {
+    color: #8a93a5;
+    font-size: .72rem
+}
+
+/* Center icons inside buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    line-height: 1.2;
+}
+
+.btn i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.btn i::before {
+    display: block;
+    line-height: 1;
+}
+
+
+
+@media (max-width: 767px) {
+    .welcome-panel {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .welcome-date {
+        width: 100%;
+        justify-content: center
+    }
+
+    .page-heading .btn {
+        font-size: .8rem
+    }
+
+    .admin-profile {
+        padding: .4rem
+    }
+
+    .recruitment-table {
+        min-width: 700px
+    }
+}
+
+.application-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem
+}
+
+.application-progress-circle {
+    --progress: 45;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(var(--rs8-red) calc(var(--progress) * 1%), #eef1f6 0);
+    position: relative
+}
+
+.application-progress-circle:before {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: #fff
+}
+
+.application-progress-circle span {
+    position: relative;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--rs8-dark)
+}
+
+.next-schedule-card {
+    text-align: center;
+    padding: .8rem
+}
+
+.schedule-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: #fff1f2;
+    color: var(--rs8-red);
+    display: grid;
+    place-items: center;
+    font-size: 1.7rem;
+    margin: 0 auto 1rem
+}
+
+.next-schedule-card small {
+    color: #8a93a5
+}
+
+.application-timeline {
+    position: relative
+}
+
+.timeline-step {
+    display: flex;
+    gap: 1rem;
+    position: relative;
+    padding: 0 0 1.5rem
+}
+
+.timeline-step:not(:last-child):after {
+    content: "";
+    position: absolute;
+    left: 18px;
+    top: 38px;
+    bottom: 0;
+    width: 2px;
+    background: #e5e7eb
+}
+
+.timeline-marker {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex: 0 0 38px;
+    background: #f3f4f6;
+    color: #9ca3af;
+    z-index: 1
+}
+
+.timeline-step.completed .timeline-marker {
+    background: #dcfce7;
+    color: #15803d
+}
+
+.timeline-step.current .timeline-marker {
+    background: #fff1f2;
+    color: var(--rs8-red);
+    box-shadow: 0 0 0 5px rgba(237, 28, 36, .08)
+}
+
+.timeline-step strong, .timeline-step small {
+    display: block
+}
+
+.timeline-step small {
+    color: #8a93a5;
+    margin-top: .2rem
+}
+
+.job-list-item {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: .8rem;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eef1f5
+}
+
+.job-list-item:last-child {
+    border-bottom: 0
+}
+
+.job-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #eef2ff;
+    color: #3730a3;
+    display: grid;
+    place-items: center
+}
+
+.job-list-item strong, .job-list-item small, .job-list-item span {
+    display: block
+}
+
+.job-list-item small, .job-list-item span {
+    color: #8a93a5;
+    font-size: .72rem
+}
+
+.job-list-item span {
+    margin-top: .15rem
+}
+
+.applicant-welcome {
+    background: linear-gradient(120deg, #151b2b, #35405d)
+}
+
+@media (max-width: 575px) {
+    .application-summary {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    .application-progress-circle {
+        width: 96px;
+        height: 96px
+    }
+}
