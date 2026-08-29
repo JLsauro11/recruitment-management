@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-icons-latest.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/recruitment-admin.css') }}">
-    <link rel="shortcut icon" href="{{ asset('assets/images/favicon.svg') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ asset('assets//images/logo/rs8_logo1.png') }}" type="image/png">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
     @stack('styles')
 <style>

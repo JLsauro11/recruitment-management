@@ -8,6 +8,8 @@
 
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
+    <link rel="shortcut icon" href="{{ asset('assets//images/logo/rs8_logo1.png') }}" type="image/png">
+
 
     <style>
         :root {
