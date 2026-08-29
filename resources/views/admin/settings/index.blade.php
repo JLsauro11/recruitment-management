@@ -1,0 +1,8 @@
+@extends('layout.app')
+@section('title','Settings')
+@section('page-title','System Settings')
+@section('page-description','Configure company and recruitment defaults')
+@section('content')
+<div class="card border-0 shadow-sm"><div class="card-body p-4"><form id="settingsForm">@csrf @method('PUT')<div class="row g-3"><div class="col-md-6"><label class="form-label">Company Name</label><input name="company_name" class="form-control" value="{{ $settings['company_name'] ?? 'RS8 Moto Workz' }}"></div><div class="col-md-6"><label class="form-label">Recruitment Email</label><input type="email" name="recruitment_email" class="form-control" value="{{ $settings['recruitment_email'] ?? 'hr@rs8.com' }}"></div><div class="col-md-6"><label class="form-label">Contact Number</label><input name="contact_number" class="form-control" value="{{ $settings['contact_number'] ?? '' }}"></div><div class="col-md-6"><label class="form-label">Default Application Status</label><select name="default_application_status" class="form-select"><option>New Applicant</option><option>For Screening</option></select></div><div class="col-12"><label class="form-label">Office Address</label><textarea name="office_address" class="form-control" rows="3">{{ $settings['office_address'] ?? '' }}</textarea></div></div><button class="btn btn-danger mt-4">Save Settings</button></form></div></div>
+@endsection
+@push('scripts')<script>$('#settingsForm').submit(function(e){e.preventDefault();$.ajax({url:'{{ route('admin.settings.update') }}',type:'PUT',data:$(this).serialize(),success:r=>showToast('success',r.message),error:x=>Swal.fire('Error',Object.values(x.responseJSON?.errors||{}).flat()[0]||'Something went wrong','error')})})</script>@endpush

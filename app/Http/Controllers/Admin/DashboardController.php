@@ -18,7 +18,7 @@ class DashboardController extends Controller
             'new_applicants' => Application::where('status', 'New Applicant')->count(),
             'for_screening' => Application::where('status', 'For Screening')->count(),
             'scheduled_interviews' => Interview::where('status', 'Scheduled')->count(),
-            'for_examination' => Application::where('status', 'For Examination')->count(),
+            'for_questionnaire' => Application::where('status', 'For Questionnaire Review')->count(),
             'hired_applicants' => Application::where('status', 'Hired')->count(),
             'rejected_applicants' => Application::where('status', 'Rejected')->count(),
             'active_vacancies' => JobVacancy::where('status', 'Open')->count(),
@@ -47,7 +47,7 @@ class DashboardController extends Controller
             return Application::whereYear('applied_at', $date->year)->whereMonth('applied_at', $date->month)->count();
         });
 
-        $statusLabels = ['For Screening', 'For Initial Interview', 'For Examination', 'For Job Offer', 'Hired', 'Rejected'];
+        $statusLabels = ['For Screening', 'For Initial Interview', 'For Questionnaire Review', 'For Job Offer', 'Hired', 'Rejected'];
         $statusValues = collect($statusLabels)->map(fn ($status) => Application::where('status', $status)->count());
 
         return view('admin.dashboard.index', compact(

@@ -5,10 +5,10 @@
 @section('page-description', 'Monitor applicants, vacancies, interviews, and hiring progress.')
 
 @section('page-actions')
-<div class="d-flex gap-2">
-    <button class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i> Export Report</button>
-    <button class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add Job Vacancy</button>
-</div>
+{{--<div class="d-flex gap-2">--}}
+    {{--<button class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i> Export Report</button>--}}
+    {{--<button class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add Job Vacancy</button>--}}
+{{--</div>--}}
 @endsection
 
 @section('content')
@@ -32,7 +32,7 @@
                 ['label' => 'New Applicants', 'value' => $statistics['new_applicants'], 'icon' => 'bi-person-plus-fill', 'class' => 'cyan', 'note' => 'Awaiting review'],
                 ['label' => 'For Screening', 'value' => $statistics['for_screening'], 'icon' => 'bi-search', 'class' => 'orange', 'note' => 'Qualification check'],
                 ['label' => 'Scheduled Interviews', 'value' => $statistics['scheduled_interviews'], 'icon' => 'bi-calendar-check-fill', 'class' => 'purple', 'note' => 'Upcoming interviews'],
-                ['label' => 'For Examination', 'value' => $statistics['for_examination'], 'icon' => 'bi-clipboard-data-fill', 'class' => 'yellow', 'note' => 'Pending examination'],
+                ['label' => 'For Questionnaire Review', 'value' => $statistics['for_questionnaire'], 'icon' => 'bi-clipboard-data-fill', 'class' => 'yellow', 'note' => 'Pending form review'],
                 ['label' => 'Hired Applicants', 'value' => $statistics['hired_applicants'], 'icon' => 'bi-person-check-fill', 'class' => 'green', 'note' => 'Successfully hired'],
                 ['label' => 'Rejected Applicants', 'value' => $statistics['rejected_applicants'], 'icon' => 'bi-person-x-fill', 'class' => 'red', 'note' => 'Not selected'],
                 ['label' => 'Active Vacancies', 'value' => $statistics['active_vacancies'], 'icon' => 'bi-megaphone-fill', 'class' => 'navy', 'note' => 'Currently open'],
@@ -112,7 +112,7 @@
                                         'New Applicant' => 'status-new',
                                         'For Screening' => 'status-screening',
                                         'For Interview' => 'status-interview',
-                                        'For Examination' => 'status-exam',
+                                        'For Questionnaire Review' => 'status-questionnaire',
                                         'Hired' => 'status-hired',
                                         default => 'status-default',
                                     };

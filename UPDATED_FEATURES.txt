@@ -1,0 +1,12 @@
+RS8 Recruitment Management System - Applicants/Form Integration Update
+
+Implemented:
+1. Public form submission automatically creates an Applicant/Application record with status "New Applicant" (existing behavior retained and verified).
+2. Applicant table now includes a PDF/document button beside the status-edit button.
+3. The document button opens one printable A4 page for every submitted active form template.
+   Example: Application for Employment + Employment Questionnaire = 2 printable pages.
+4. The printable document is generated dynamically from the template fields and submitted answers.
+5. Use the browser button "Print / Save as PDF" to print or save the combined pages as one PDF file.
+6. Removed "Submitted Forms" from the sidebar and disabled its admin/HR routes. Submitted forms are now accessed from the Applicants table.
+
+No new database migration is required.

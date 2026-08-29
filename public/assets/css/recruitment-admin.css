@@ -607,3 +607,210 @@ body {
         height: 96px
     }
 }
+
+/* Recruitment notification center */
+.notification-count {
+    position: absolute;
+    top: -6px;
+    right: -7px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    color: #fff;
+    background: var(--rs8-red);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.notification-menu {
+    width: min(410px, calc(100vw - 24px));
+    padding: 0;
+    overflow: hidden;
+    border-radius: 18px;
+}
+
+.notification-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid #edf0f4;
+    background: linear-gradient(135deg, #fff, #fff6f6);
+}
+
+.notification-menu-header strong,
+.notification-menu-header small {
+    display: block;
+}
+
+.notification-menu-header strong {
+    color: #17233e;
+    font-size: 15px;
+}
+
+.notification-menu-header small {
+    margin-top: 2px;
+    color: #8a93a5;
+    font-size: 11px;
+}
+
+.notification-menu-header .btn-link {
+    color: var(--rs8-red);
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.notification-list {
+    max-height: 430px;
+    overflow-y: auto;
+    background: #fff;
+}
+
+.notification-item {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    padding: 14px 17px;
+    border-bottom: 1px solid #f0f2f5;
+    color: inherit;
+    text-decoration: none;
+    transition: .18s ease;
+}
+
+.notification-item:hover {
+    background: #f8fafc;
+}
+
+.notification-item.unread {
+    background: #fff8f8;
+}
+
+.notification-item-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    font-size: 17px;
+}
+
+.notification-item-content {
+    min-width: 0;
+    display: block;
+    padding-right: 12px;
+}
+
+.notification-item-content strong,
+.notification-item-content span,
+.notification-item-content small {
+    display: block;
+}
+
+.notification-item-content strong {
+    color: #17233e;
+    font-size: 12px;
+}
+
+.notification-item-content span {
+    margin-top: 3px;
+    color: #5f6c80;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.notification-item-content small {
+    margin-top: 5px;
+    color: #9aa3b2;
+    font-size: 10px;
+}
+
+.notification-unread-mark {
+    position: absolute;
+    top: 20px;
+    right: 15px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rs8-red);
+}
+
+.notification-empty,
+.notification-loading {
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 24px;
+    color: #8a93a5;
+    text-align: center;
+}
+
+.notification-empty i {
+    color: #c2c8d1;
+    font-size: 28px;
+}
+
+.notification-empty strong {
+    color: #4b5565;
+    font-size: 13px;
+}
+
+.notification-empty small {
+    max-width: 270px;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+
+@keyframes notificationBellPulse {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    20% { transform: rotate(-14deg) scale(1.08); }
+    40% { transform: rotate(12deg) scale(1.08); }
+    60% { transform: rotate(-8deg) scale(1.05); }
+    80% { transform: rotate(6deg) scale(1.03); }
+}
+
+#notificationBell.notification-bell-new {
+    animation: notificationBellPulse .75s ease;
+}
+
+.notification-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.notification-header-actions .btn-link {
+    padding: 2px 5px;
+}
+
+.notification-menu-footer {
+    padding: 10px 14px;
+    border-top: 1px solid #edf0f4;
+    background: #fff;
+    text-align: center;
+}
+
+.notification-menu-footer .btn-link {
+    color: var(--rs8-red);
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.notification-menu-footer .btn-link:hover {
+    text-decoration: underline;
+}

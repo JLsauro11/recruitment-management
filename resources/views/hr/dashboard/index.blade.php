@@ -5,7 +5,7 @@
 @section('page-description', 'Manage daily recruitment tasks, interviews, and applicant progress.')
 
 @section('page-actions')
-<div class="d-flex gap-2"><button class="btn btn-outline-secondary"><i class="bi bi-calendar3 me-1"></i> View Calendar</button><button class="btn btn-primary"><i class="bi bi-person-plus-fill me-1"></i> Add Applicant</button></div>
+{{--<div class="d-flex gap-2"><button class="btn btn-outline-secondary"><i class="bi bi-calendar3 me-1"></i> View Calendar</button><button class="btn btn-primary"><i class="bi bi-person-plus-fill me-1"></i> Add Applicant</button></div>--}}
 @endsection
 
 @section('content')

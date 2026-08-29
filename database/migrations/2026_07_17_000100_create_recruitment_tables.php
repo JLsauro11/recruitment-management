@@ -70,15 +70,13 @@ return new class extends Migration
         Schema::create('applicants', function (Blueprint $table) {
             $table->id();
 
-            /*
-             * Required at unique ang user_id:
-             * bawat applicant ay may sariling login account.
-             */
+            /* Public applicants do not need a system login account. */
             $table->foreignId('user_id')
+                ->nullable()
                 ->unique()
                 ->constrained('users')
                 ->cascadeOnUpdate()
-                ->cascadeOnDelete();
+                ->nullOnDelete();
 
             $table->string('first_name');
             $table->string('middle_name')->nullable();
@@ -111,7 +109,7 @@ return new class extends Migration
                 'New Applicant',
                 'For Screening',
                 'For Initial Interview',
-                'For Examination',
+                'For Questionnaire Review',
                 'For Final Interview',
                 'For Job Offer',
                 'Hired',
@@ -171,29 +169,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('exam_results', function (Blueprint $table) {
-            $table->id();
-
-            $table->foreignId('application_id')
-                ->constrained('applications')
-                ->cascadeOnUpdate()
-                ->cascadeOnDelete();
-
-            $table->string('exam_type');
-            $table->decimal('score', 8, 2);
-            $table->decimal('passing_score', 8, 2);
-
-            $table->enum('result', [
-                'Passed',
-                'Failed',
-            ]);
-
-            $table->text('remarks')->nullable();
-            $table->timestamps();
-
-            $table->unique(['application_id', 'exam_type']);
-        });
-
         Schema::create('application_status_histories', function (Blueprint $table) {
             $table->id();
 
@@ -221,7 +196,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('application_status_histories');
-        Schema::dropIfExists('exam_results');
         Schema::dropIfExists('interviews');
         Schema::dropIfExists('applications');
         Schema::dropIfExists('applicants');

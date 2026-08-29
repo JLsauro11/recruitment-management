@@ -20,10 +20,16 @@
                 </div>
             </div>
 
-            <button type="button" class="premium-primary-btn" id="addBtn">
-                <i class="bi bi-plus-lg"></i>
-                <span>Add Job Vacancy</span>
-            </button>
+            <div class="premium-header-actions">
+                <button type="button" class="premium-secondary-btn" id="refreshBtn">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    <span>Refresh Records</span>
+                </button>
+                <button type="button" class="premium-primary-btn" id="addBtn">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Add Job Vacancy</span>
+                </button>
+            </div>
         </div>
 
         <div class="premium-table-wrap">
@@ -2015,6 +2021,71 @@
     }
 
 
+
+    /* =========================================================
+       ADMIN TABLE TYPOGRAPHY
+       Larger, clearer text for every admin DataTable.
+    ========================================================= */
+
+    .premium-table-wrap .dataTables_length,
+    .premium-table-wrap .dataTables_filter,
+    .premium-table-wrap .dataTables_info,
+    .premium-table-wrap .dataTables_paginate {
+        font-size: 14px !important;
+    }
+
+    .premium-table-wrap .dataTables_length label,
+    .premium-table-wrap .dataTables_filter label {
+        font-size: 14px !important;
+        font-weight: 500;
+    }
+
+    .premium-table-wrap .dataTables_length select,
+    .premium-table-wrap .dataTables_filter input {
+        min-height: 40px;
+        font-size: 14px !important;
+    }
+
+    .premium-table-wrap table.dataTable thead th {
+        font-size: 13px !important;
+        line-height: 1.35;
+        letter-spacing: .025em;
+    }
+
+    .premium-table-wrap table.dataTable tbody td {
+        font-size: 14px !important;
+        line-height: 1.55;
+    }
+
+    .premium-table-wrap .premium-status,
+    .premium-table-wrap .premium-status-badge {
+        font-size: 12px !important;
+    }
+
+    .premium-table-wrap .paginate_button,
+    .premium-table-wrap .page-link {
+        font-size: 14px !important;
+    }
+
+    @media (max-width: 767.98px) {
+        .premium-table-wrap .dataTables_length,
+        .premium-table-wrap .dataTables_filter,
+        .premium-table-wrap .dataTables_info,
+        .premium-table-wrap .dataTables_paginate,
+        .premium-table-wrap .dataTables_length label,
+        .premium-table-wrap .dataTables_filter label {
+            font-size: 13px !important;
+        }
+
+        .premium-table-wrap table.dataTable thead th {
+            font-size: 12px !important;
+        }
+
+        .premium-table-wrap table.dataTable tbody td {
+            font-size: 13px !important;
+        }
+    }
+
 </style>
 @endpush
 
@@ -2193,6 +2264,18 @@
                 }
             });
         }
+
+
+$('#refreshBtn').on('click', function () {
+            const $button = $(this);
+            const originalHtml = $button.html();
+            $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Refreshing...</span>');
+
+            table.ajax.reload(function () {
+                $button.prop('disabled', false).html(originalHtml);
+                showToast('success', 'Records refreshed successfully.');
+            }, false);
+        });
 
         $('#addBtn').click(function () {
             resetForm();

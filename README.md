@@ -64,3 +64,20 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+
+## Public Applicant Workflow
+Applicants no longer need user accounts or a dashboard. Share this link:
+
+- `/apply` - Public Application for Employment and Questionnaire
+
+After submission, the applicant receives a reference number. Staff login remains available at `/login`.
+
+## Form Builder Improvements
+
+- Field keys are validated as unique within each template in both frontend and backend.
+- New fields are inserted at the top of the builder.
+- Existing sections are loaded from saved template fields and can be reused.
+- New section names can be created directly while adding a field.
+- Options are only shown for Select, Radio, and Checkbox field types.
+- Public employment application uses a premium multi-step form with progress tracking, section navigation, file upload styling, and final review.
