@@ -59,7 +59,7 @@
                     </div>
 
                     <h1>
-                        Finds work that
+                        Find work that
                         <span>moves you forward.</span>
                     </h1>
 
