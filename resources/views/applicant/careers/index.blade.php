@@ -98,7 +98,7 @@
                 <div class="career-hero-visual" aria-hidden="true">
                     <div class="career-hero-artwork">
                         <img
-                            src="{{ asset('assets/images/careers/hero-hiring-premium.svg') }}"
+                            src="{{ asset('assets/images/careers/hero-hiring-premium.png') }}"
                             alt=""
                             class="career-hero-illustration"
                             loading="eager"
