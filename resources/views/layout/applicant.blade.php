@@ -146,6 +146,57 @@
             padding-bottom: 38px;
         }
 
+        body.careers-light {
+            color: #15171c;
+            background: #f7f7f5;
+        }
+
+        body.careers-light::before,
+        body.careers-light::after {
+            display: none;
+        }
+
+        body.careers-light .app-header {
+            border-bottom: 1px solid rgba(17, 24, 39, .08);
+            background: rgba(255, 255, 255, .92);
+            box-shadow: 0 8px 30px rgba(15, 23, 42, .06);
+            backdrop-filter: blur(18px);
+        }
+
+        body.careers-light .brand {
+            color: #101217 !important;
+        }
+
+        body.careers-light .brand-logo {
+            filter: drop-shadow(0 5px 12px rgba(15, 23, 42, .10));
+        }
+
+        body.careers-light .brand-copy {
+            border-left-color: #e5e7eb;
+        }
+
+        body.careers-light .brand-copy small {
+            color: var(--rs8-red);
+        }
+
+        body.careers-light .staff-login-btn {
+            color: #20242c;
+            border-color: #e2e5ea;
+            background: #fff;
+            box-shadow: 0 5px 18px rgba(15, 23, 42, .05);
+        }
+
+        body.careers-light .staff-login-btn:hover {
+            color: #fff;
+            border-color: var(--rs8-red);
+            background: var(--rs8-red);
+        }
+
+        body.careers-light .public-main {
+            max-width: none;
+            padding: 0;
+        }
+
         @media (max-width: 767.98px) {
             .app-header .container {
                 padding-left: 14px;
@@ -176,10 +227,10 @@
 
     @stack('styles')
 </head>
-<body>
+<body class="@yield('body_class')">
 <header class="app-header py-3">
     <div class="container d-flex justify-content-between align-items-center gap-3">
-        <a href="{{ route('careers.apply') }}" class="brand text-decoration-none">
+        <a href="{{ route('careers.index') }}" class="brand text-decoration-none">
             <img
                 src="{{ asset('assets/images/logo/rs8-public-logo.png') }}"
                 alt="RS8 Taiwan Speed Factory"
@@ -188,11 +239,11 @@
 
             <div class="brand-copy">
                 <strong>RS8 Recruitment</strong>
-                <small>Application for Employment</small>
+                <small>Careers & Recruitment</small>
             </div>
         </a>
 
-        <a href="{{ route('login') }}" class="staff-login-btn">
+        <a href="{{ route('login') }}" class="staff-login-btn" data-staff-login-trigger>
             <i class="bi bi-person"></i>
             <span>Staff Login</span>
         </a>

@@ -191,10 +191,10 @@ class ApplicantController extends Controller
                 return [
                     'id' => $vacancy->id,
                     'title' => $vacancy->title,
-                    'status' => $vacancy->status,
+                    'status' => $vacancy->effective_status,
                     'label' => $vacancy->title
                         . ($details ? ' | ' . $details : '')
-                        . ' (' . $vacancy->status . ')',
+                        . ' (' . $vacancy->effective_status . ')',
                 ];
             })
             ->values();

@@ -18,7 +18,7 @@ class ReportController extends Controller
             'applications' => Application::count(),
             'hired' => Application::where('status', 'Hired')->count(),
             'rejected' => Application::where('status', 'Rejected')->count(),
-            'open_vacancies' => JobVacancy::where('status', 'Open')->count(),
+            'open_vacancies' => JobVacancy::openForApplications()->count(),
             'scheduled_interviews' => Interview::where('status', 'Scheduled')->count(),
         ];
         $byStatus = Application::selectRaw('status, COUNT(*) total')->groupBy('status')->orderByDesc('total')->get();

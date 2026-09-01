@@ -16,20 +16,25 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 
+Route::get('/careers', [FormController::class, 'careers'])->name('careers.index');
+Route::post('/careers/select/{vacancy}', [FormController::class, 'selectVacancy'])->name('careers.select');
 Route::get('/apply', [FormController::class, 'index'])->name('careers.apply');
+// Legacy/direct vacancy URLs are intentionally blocked. Applicants must choose a role on /careers first.
+Route::get('/apply/{vacancy}', fn () => redirect()->route('careers.index')
+    ->with('career_error', 'Please select an open position from the careers page before starting an application.'));
 Route::post('/apply/validate-step', [FormController::class, 'validateStep'])->name('careers.validate-step');
 Route::post('/apply', [FormController::class, 'submit'])->name('careers.submit');
 Route::get('/application-submitted', [FormController::class, 'success'])->name('careers.success');
 
 Route::get('/', function () {
     if (!auth()->check()) {
-        return redirect()->route('careers.apply');
+        return redirect()->route('careers.index');
     }
 
     return match (auth()->user()->role) {
         'admin' => redirect()->route('admin.dashboard'),
         'hr' => redirect()->route('hr.dashboard'),
-        default => redirect()->route('careers.apply'),
+        default => redirect()->route('careers.index'),
     };
 });
 
@@ -56,6 +61,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     Route::get('forms/data', [FormTemplateController::class, 'data'])->name('forms.data');
     Route::get('forms/sections', [FormTemplateController::class, 'sections'])->name('forms.sections');
+    Route::post('forms/reorder', [FormTemplateController::class, 'reorder'])->name('forms.reorder');
     Route::resource('forms', FormTemplateController::class)->parameters(['forms' => 'formTemplate'])->except(['create','edit']);
 
     Route::get('hiring-status/data', [PipelineController::class, 'data'])->name('hiring-status.data');
@@ -98,6 +104,7 @@ Route::prefix('hr')->name('hr.')->middleware(['auth', 'role:hr'])->group(functio
 
     Route::get('forms/data', [FormTemplateController::class, 'data'])->name('forms.data');
     Route::get('forms/sections', [FormTemplateController::class, 'sections'])->name('forms.sections');
+    Route::post('forms/reorder', [FormTemplateController::class, 'reorder'])->name('forms.reorder');
     Route::resource('forms', FormTemplateController::class)->parameters(['forms' => 'formTemplate'])->except(['create','edit']);
 
     Route::get('hiring-status/data', [PipelineController::class, 'data'])->name('hiring-status.data');

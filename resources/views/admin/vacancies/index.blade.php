@@ -37,7 +37,7 @@
                 <table id="dataTable" class="table align-middle w-100">
                     <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>No.</th>
                         <th>Title</th>
                         <th>Position</th>
                         <th>Department</th>
@@ -97,11 +97,11 @@
                                     <option value="">Select Position</option>
 
                                     @foreach($positions as $position)
-                                        <option value="{{ $position->id }}">
-                                            {{ $position->name }}
-                                            @if($position->department)
-                                                - {{ $position->department->name }}
-                                            @endif
+                                        <option
+                                            value="{{ $position->id }}"
+                                            data-position-name="{{ $position->name }}"
+                                        >
+                                            {{ $position->name }}@if($position->department) | {{ $position->department->name }}@endif
                                         </option>
                                     @endforeach
                                 </select>
@@ -119,10 +119,10 @@
                                         name="title"
                                         id="title"
                                         class="form-control"
-                                        placeholder="Example: Sales Executive"
+                                        placeholder="Auto-filled from Position"
+                                        readonly
                                 >
-
-                                <div class="invalid-feedback title_error"></div>
+                                <div class="form-text">Automatically uses the selected position name.</div>
                             </div>
 
                             <div class="col-md-4">
@@ -178,6 +178,34 @@
                                 </select>
 
                                 <div class="invalid-feedback status_error"></div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="poster" class="form-label">
+                                    Job Position Poster
+                                </label>
+
+                                <div class="poster-upload-shell">
+                                    <div class="poster-preview" id="posterPreviewWrap">
+                                        <img id="posterPreview" alt="Job poster preview">
+                                        <div class="poster-preview-placeholder" id="posterPreviewPlaceholder">
+                                            <i class="bi bi-image"></i>
+                                            <span>Poster preview</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="poster-upload-copy">
+                                        <input
+                                            type="file"
+                                            name="poster"
+                                            id="poster"
+                                            class="form-control"
+                                            accept="image/jpeg,image/png,image/webp"
+                                        >
+                                        <div class="form-text">Required aspect ratio: 3:4 portrait (example: 900 x 1200 px). JPG, PNG, or WEBP up to 5 MB.</div>
+                                        <div class="invalid-feedback poster_error"></div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="col-md-6">
@@ -247,32 +275,17 @@
                             </div>
 
                             <div class="col-12">
-                                <label for="description" class="form-label">
-                                    Job Description
-                                </label>
-
-                                <textarea
-                                        name="description"
-                                        id="description"
-                                        class="form-control"
-                                        rows="5"
-                                        placeholder="Enter the job description..."
-                                ></textarea>
-
-                                <div class="invalid-feedback description_error"></div>
-                            </div>
-
-                            <div class="col-12">
                                 <label for="qualifications" class="form-label">
-                                    Qualifications
+                                    Qualifications <span class="text-danger">*</span>
                                 </label>
 
                                 <textarea
                                         name="qualifications"
                                         id="qualifications"
                                         class="form-control"
-                                        rows="5"
-                                        placeholder="Enter the required qualifications..."
+                                        rows="6"
+                                        placeholder="Enter each qualification on a new line..."
+                                        required
                                 ></textarea>
 
                                 <div class="invalid-feedback qualifications_error"></div>
@@ -401,21 +414,6 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div class="vacancy-section mt-4">
-                                <div class="vacancy-section-heading">
-                                    <div class="section-icon">
-                                        <i class="bi bi-card-text"></i>
-                                    </div>
-
-                                    <div>
-                                        <h5>Job Description</h5>
-                                        <p>Primary duties and responsibilities for this role.</p>
-                                    </div>
-                                </div>
-
-                                <div class="vacancy-copy" id="view_description"></div>
                             </div>
 
                             <div class="vacancy-section mt-4">
@@ -776,6 +774,70 @@
         min-height: 110px;
     }
 
+    .poster-upload-shell {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 16px;
+        align-items: center;
+        padding: 14px;
+        border: 1px dashed #d7dde6;
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .poster-preview {
+        position: relative;
+        width: 150px;
+        aspect-ratio: 3 / 4;
+        overflow: hidden;
+        border: 1px solid #e5e9ef;
+        border-radius: 12px;
+        background: #f7f8fa;
+    }
+
+    .poster-preview img {
+        width: 100%;
+        height: 100%;
+        display: none;
+        object-fit: cover;
+    }
+
+    .poster-preview.has-image img {
+        display: block;
+    }
+
+    .poster-preview.has-image .poster-preview-placeholder {
+        display: none;
+    }
+
+    .poster-preview-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 5px;
+        color: #9ba6b6;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .poster-preview-placeholder i {
+        font-size: 22px;
+        color: #c0c7d1;
+    }
+
+    .poster-upload-copy {
+        min-width: 0;
+    }
+
+    .poster-upload-copy .form-text {
+        margin-top: 7px;
+        color: #8a96a8;
+        font-size: 10px;
+        line-height: 1.45;
+    }
+
     .premium-form-modal .form-control:focus,
     .premium-form-modal .form-select:focus {
         border-color: #ed1c24;
@@ -783,6 +845,15 @@
     }
 
     @media (max-width: 767.98px) {
+        .poster-upload-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .poster-preview {
+            width: 100%;
+            max-width: 180px;
+        }
+
         .premium-page-header {
             align-items: flex-start;
             flex-direction: column;
@@ -2116,6 +2187,9 @@
             $('#slots').val(1);
             $('#employment_type').val('Full-time');
             $('#status').val('Draft');
+            $('#title').val('');
+            $('#posterPreview').attr('src', '');
+            $('#posterPreviewWrap').removeClass('has-image');
             $('#modalTitle').text('Add Job Vacancy');
             $('#saveBtn').text('Save Job Vacancy');
         }
@@ -2192,7 +2266,14 @@
                 },
 
                 columns: [
-                    { data: 'id' },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row, meta) {
+                            return meta.settings._iDisplayStart + meta.row + 1;
+                        }
+                    },
                     { data: 'title' },
                     {
                         data: 'position_name',
@@ -2256,7 +2337,7 @@
                     }
                 ],
 
-                order: [[0, 'desc']],
+                order: [],
 
                 language: {
                     emptyTable: 'No job vacancies found.',
@@ -2264,6 +2345,57 @@
                 }
             });
         }
+
+
+        $('#position_id').on('change', function () {
+            const selected = this.options[this.selectedIndex];
+            $('#title').val(selected?.dataset?.positionName || '');
+        });
+
+        $('#poster').on('change', function () {
+            const input = this;
+            const file = input.files?.[0];
+            const $poster = $('#poster');
+            const $error = $('.poster_error');
+
+            $poster.removeClass('is-invalid');
+            $error.text('');
+
+            if (!file) {
+                $('#posterPreview').attr('src', '');
+                $('#posterPreviewWrap').removeClass('has-image');
+                return;
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+            const image = new Image();
+
+            image.onload = function () {
+                const isThreeByFour = image.naturalWidth * 4 === image.naturalHeight * 3;
+
+                if (!isThreeByFour) {
+                    URL.revokeObjectURL(objectUrl);
+                    input.value = '';
+                    $('#posterPreview').attr('src', '');
+                    $('#posterPreviewWrap').removeClass('has-image');
+                    $poster.addClass('is-invalid');
+                    $error.text('The job poster must use a 3:4 portrait aspect ratio, for example 900 x 1200 pixels.');
+                    return;
+                }
+
+                $('#posterPreview').attr('src', objectUrl);
+                $('#posterPreviewWrap').addClass('has-image');
+            };
+
+            image.onerror = function () {
+                URL.revokeObjectURL(objectUrl);
+                input.value = '';
+                $poster.addClass('is-invalid');
+                $error.text('Unable to read this image. Please choose a valid JPG, PNG, or WEBP file.');
+            };
+
+            image.src = objectUrl;
+        });
 
 
 $('#refreshBtn').on('click', function () {
@@ -2326,7 +2458,6 @@ $('#refreshBtn').on('click', function () {
                     }
 
                     $('#view_salary').text(salaryText);
-                    $('#view_description').text(response.description || 'No description provided.');
                     $('#view_qualifications').text(
                         response.qualifications || 'No qualifications provided.'
                     );
@@ -2368,9 +2499,17 @@ $('#refreshBtn').on('click', function () {
                     $('#salary_max').val(response.salary_max);
                     $('#opening_date').val(response.opening_date_raw);
                     $('#closing_date').val(response.closing_date_raw);
-                    $('#description').val(response.description);
                     $('#qualifications').val(response.qualifications);
                     $('#status').val(response.status);
+                    $('#poster').val('');
+
+                    if (response.poster_url) {
+                        $('#posterPreview').attr('src', response.poster_url);
+                        $('#posterPreviewWrap').addClass('has-image');
+                    } else {
+                        $('#posterPreview').attr('src', '');
+                        $('#posterPreviewWrap').removeClass('has-image');
+                    }
 
                     $('#modalTitle').text('Edit Job Vacancy');
                     $('#saveBtn').text('Update Job Vacancy');
@@ -2400,7 +2539,10 @@ $('#refreshBtn').on('click', function () {
                 ? "{{ route('admin.vacancies.update', ':id') }}".replace(':id', id)
                 : "{{ route('admin.vacancies.store') }}";
 
-            const method = id ? 'PUT' : 'POST';
+            const formData = new FormData(this);
+            if (id) {
+                formData.append('_method', 'PUT');
+            }
 
             $('#saveBtn')
                 .prop('disabled', true)
@@ -2418,10 +2560,12 @@ $('#refreshBtn').on('click', function () {
         });
 
             $.ajax({
-                type: method,
+                type: 'POST',
                 url: url,
                 dataType: 'json',
-                data: $(this).serialize(),
+                data: formData,
+                processData: false,
+                contentType: false,
 
                 success: function (response) {
                     Swal.close();

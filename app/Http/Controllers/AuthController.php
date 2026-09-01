@@ -11,7 +11,9 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) return redirect()->route(Auth::user()->role . '.dashboard');
-        return view('auth.login');
+
+        // Keep staff authentication visually inside the public careers landing page.
+        return redirect()->route('careers.index', ['staff_login' => 1]);
     }
 
     public function login(Request $r)

@@ -36,7 +36,7 @@
             <table id="dataTable" class="table align-middle w-100">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>No.</th>
                         <th>Position</th>
                         <th>Department</th>
                         <th>Vacancies</th>
@@ -903,7 +903,14 @@ $(document).ready(function () {
             },
 
             columns: [
-                { data: 'id' },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return meta.settings._iDisplayStart + meta.row + 1;
+                    }
+                },
                 { data: 'name' },
                 {
                     data: 'department.name',
@@ -920,9 +927,14 @@ $(document).ready(function () {
                             ? 'status-active'
                             : 'status-inactive';
 
+                        const label = String(data || '')
+                            .toLowerCase()
+                            .replace(/(^|\s|[-_])\S/g, character => character.toUpperCase())
+                            .replace(/_/g, ' ');
+
                         return `
                             <span class="premium-status ${badgeClass}">
-                                ${data}
+                                ${label}
                             </span>
                         `;
                     }
@@ -958,7 +970,7 @@ $(document).ready(function () {
                 }
             ],
 
-            order: [[0, 'desc']],
+            order: [],
 
             language: {
                 emptyTable: 'No positions found.',

@@ -1,5 +1,7 @@
 @extends('layout.applicant')
 
+@section('title', 'Apply for '.($vacancy->title ?? 'Position').' | RS8 Recruitment')
+
 @section('content')
     @if($templates->isEmpty())
         <div class="alert alert-warning">No active employment form is available. Please contact HR.</div>
@@ -7,7 +9,6 @@
         @php
             $stepNumber = 1;
             $steps = collect();
-            $steps->push(['key' => 'position', 'title' => 'Position', 'subtitle' => 'Select the vacancy you want to apply for']);
             foreach ($templates as $template) {
                 $groups = $template->fields->groupBy(fn($field) => $field->section ?: 'General Information');
                 foreach ($groups as $section => $fields) {
@@ -30,8 +31,8 @@
                 <aside class="application-sidebar">
                     <div class="sidebar-progress-title">
                         <span class="sidebar-progress-kicker">APPLICATION FLOW</span>
-                        <strong>Complete all required sections</strong>
-                        <small>Your progress is saved only when the application is submitted.</small>
+                        <strong>Applying for {{ $vacancy->title }}</strong>
+                        <small>Complete all required sections. Your application is saved only after submission.</small>
                     </div>
 
                     <div class="progress-summary">
@@ -59,14 +60,32 @@
                         <div class="secure-badge"><i class="bi bi-shield-check"></i><span>Secure Application</span></div>
                     </div>
 
+                    <div class="application-job-context">
+                        <div class="selected-job-icon"><i class="bi bi-briefcase-fill"></i></div>
+                        <div class="selected-job-copy">
+                            <span>YOU ARE APPLYING FOR</span>
+                            <strong>{{ $vacancy->title }}</strong>
+                            <small>
+                                {{ $vacancy->position?->department?->name ?? 'RS8 Team' }}
+                                <span class="context-divider">&bull;</span>
+                                {{ $vacancy->employment_type }}
+                            </small>
+                            @error('form')
+                                <div class="selected-job-error"><i class="bi bi-exclamation-circle-fill"></i> {{ $message }}</div>
+                            @enderror
+                        </div>
+                        <a href="{{ route('careers.index') }}#open-positions" class="change-job-link">
+                            <i class="bi bi-arrow-left"></i>
+                            Back to Job Openings
+                        </a>
+                    </div>
+
                     <div class="application-card">
                         @foreach($steps as $index => $step)
                             <section
                                     class="form-step {{ $index === 0 ? 'active' : '' }}"
                                     data-step="{{ $index }}"
-                                    @if($step['key'] === 'position')
-                                    data-step-type="position"
-                                    @elseif($step['key'] !== 'review')
+                                    @if($step['key'] !== 'review')
                                     data-step-type="form_section"
                                     data-template-id="{{ $step['template']->id }}"
                                     data-section="{{ $step['title'] }}"
@@ -80,27 +99,7 @@
                                     <p>{{ $step['subtitle'] }}</p>
                                 </div>
 
-                                @if($step['key'] === 'position')
-                                    <div class="vacancy-selection-card">
-                                        <div class="vacancy-selection-icon"><i class="bi bi-briefcase-fill"></i></div>
-                                        <div class="vacancy-input-wrap">
-                                            <label class="form-label" for="job_vacancy_id">
-                                                Open Job Vacancy <span class="text-danger">*</span>
-                                            </label>
-                                            <select name="job_vacancy_id" id="job_vacancy_id" class="form-select form-select-lg" required>
-                                                <option value="">Select an open vacancy</option>
-                                                @foreach($vacancies as $vacancy)
-                                                    <option value="{{ $vacancy->id }}" @selected(old('job_vacancy_id') == $vacancy->id)>
-                                                    {{ $vacancy->title }} — {{ $vacancy->position?->department?->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            <div class="backend-error" data-error-for="job_vacancy_id">
-                                                @error('job_vacancy_id'){{ $message }}@enderror
-                                            </div>
-                                        </div>
-                                    </div>
-                                @elseif($step['key'] === 'review')
+                                @if($step['key'] === 'review')
                                     <div class="review-panel">
                                         <div class="review-icon"><i class="bi bi-check2-circle"></i></div>
                                         <h3>Review your application</h3>
@@ -397,6 +396,99 @@
         background: rgba(255,255,255,.07);
         font-size: 11px;
         white-space: nowrap;
+    }
+
+    .application-job-context {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 15px 38px;
+        border-bottom: 1px solid #e6eaf0;
+        background: #fff;
+    }
+
+    .selected-job-icon {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        color: #fff;
+        background: linear-gradient(135deg, #ed1c24, #b80e15);
+        box-shadow: 0 9px 20px rgba(237,28,36,.2);
+    }
+
+    .selected-job-copy {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .selected-job-copy > span,
+    .selected-job-copy > strong,
+    .selected-job-copy > small {
+        display: block;
+    }
+
+    .selected-job-copy > span {
+        color: #ed1c24;
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .14em;
+    }
+
+    .selected-job-copy > strong {
+        margin-top: 2px;
+        color: #17233e;
+        font-size: 15px;
+        font-weight: 900;
+    }
+
+    .selected-job-copy > small {
+        margin-top: 2px;
+        color: #7b879b;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .context-divider {
+        margin: 0 5px;
+        color: #c1c8d3;
+    }
+
+    .selected-job-error {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        margin-top: 7px;
+        color: #b91c1c;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+
+    .change-job-link {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 12px;
+        border: 1px solid #dfe4eb;
+        border-radius: 10px;
+        color: #536176;
+        background: #f8fafc;
+        font-size: 10px;
+        font-weight: 800;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+    }
+
+    .change-job-link:hover {
+        color: #ed1c24;
+        border-color: rgba(237,28,36,.3);
+        background: #fff5f5;
     }
 
     .application-card {
@@ -704,6 +796,16 @@
     }
 
     @media (max-width: 575.98px) {
+        .application-job-context {
+            align-items: flex-start;
+            flex-wrap: wrap;
+            padding: 14px 18px;
+        }
+
+        .change-job-link {
+            width: 100%;
+            margin-left: 56px;
+        }
         .employment-shell { border-radius: 0; }
         .application-hero {
             align-items: flex-start;
@@ -758,9 +860,6 @@
         function validationErrorKey(field) {
             const name = field?.getAttribute('name') || '';
 
-            if (name === 'job_vacancy_id') {
-                return 'job_vacancy_id';
-            }
 
             const answerMatch = name.match(/^answers\[(\d+)\]/);
 
@@ -769,7 +868,8 @@
 
         function isDuplicateApplicationError(errorElement) {
             const message = errorElement?.textContent?.trim().toLowerCase() || '';
-            return message.includes('already been submitted for the selected vacancy');
+            return message.includes('already been submitted for this vacancy')
+                || message.includes('already been submitted for the selected vacancy');
         }
 
         function isEmailAddressField(field) {
@@ -806,28 +906,7 @@
 
             const wrapper = field.closest('.premium-field, .vacancy-input-wrap');
             const backendError = wrapper?.querySelector('.backend-error');
-            const hadDuplicateApplicationError = isDuplicateApplicationError(backendError);
-            const isVacancyField = field.getAttribute('name') === 'job_vacancy_id';
-            const isEmailField = isEmailAddressField(field);
-
             clearSingleFieldValidation(field);
-
-            // The duplicate-application rule depends on BOTH vacancy and email.
-            // Once either value changes, the old pair is no longer the value that
-            // failed validation, so remove the matching error from the other input too.
-            if (hadDuplicateApplicationError && (isVacancyField || isEmailField)) {
-                const counterpart = isVacancyField
-                    ? form.querySelector('.premium-field[data-field-key="email_address"] input, .premium-field[data-field-key="email_address"] select, .premium-field[data-field-key="email_address"] textarea')
-                    : form.querySelector('[name="job_vacancy_id"]');
-
-                const counterpartError = counterpart
-                    ?.closest('.premium-field, .vacancy-input-wrap')
-                    ?.querySelector('.backend-error');
-
-                if (counterpart && isDuplicateApplicationError(counterpartError)) {
-                    clearSingleFieldValidation(counterpart);
-                }
-            }
 
             if (current === steps.length - 1) {
                 updateReview();
@@ -876,25 +955,6 @@
 
             steps.slice(0, -1).forEach((step, stepIndex) => {
                 const stepIssues = [];
-
-            if (step.dataset.stepType === 'position') {
-                const vacancy = step.querySelector('[name="job_vacancy_id"]');
-                const backendError = step.querySelector('[data-error-for="job_vacancy_id"]');
-                const backendMessage = backendError?.textContent.trim() || '';
-
-                if (vacancy && !vacancy.value) {
-                    const message = 'Please select an open job vacancy.';
-                    markInvalid(vacancy, message);
-                    stepIssues.push({ field: vacancy, label: 'Open Job Vacancy', message });
-                } else if (vacancy && backendMessage) {
-                    vacancy.classList.add('is-invalid');
-                    stepIssues.push({
-                        field: vacancy,
-                        label: 'Open Job Vacancy',
-                        message: backendMessage
-                    });
-                }
-            }
 
             step.querySelectorAll('.premium-field').forEach(wrapper => {
                 const inputs = [...wrapper.querySelectorAll('input, select, textarea')];

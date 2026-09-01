@@ -14,7 +14,7 @@
             <strong>{{ session('application_reference') }}</strong>
         </div>
         <p class="notice">Keep this reference number for future communication with our Recruitment Team.</p>
-        <a href="{{ route('careers.apply') }}" class="btn btn-danger px-4">Submit Another Application</a>
+        <a href="{{ route('careers.index') }}" class="btn btn-danger px-4">Browse Job Openings</a>
     </div>
 </div>
 @endsection

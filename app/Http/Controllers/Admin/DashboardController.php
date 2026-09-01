@@ -21,7 +21,7 @@ class DashboardController extends Controller
             'for_questionnaire' => Application::where('status', 'For Questionnaire Review')->count(),
             'hired_applicants' => Application::where('status', 'Hired')->count(),
             'rejected_applicants' => Application::where('status', 'Rejected')->count(),
-            'active_vacancies' => JobVacancy::where('status', 'Open')->count(),
+            'active_vacancies' => JobVacancy::openForApplications()->count(),
         ];
 
         $recentApplicants = Application::with(['applicant', 'vacancy'])

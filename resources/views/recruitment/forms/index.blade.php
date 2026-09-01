@@ -19,9 +19,9 @@
         </div>
 
         <div class="template-manager-actions">
-            <a href="{{ route('careers.apply') }}" target="_blank" class="btn btn-outline-secondary">
+            <a href="{{ route('careers.index') }}" target="_blank" class="btn btn-outline-secondary">
                 <i class="bi bi-box-arrow-up-right"></i>
-                <span>Open Public Form</span>
+                <span>Open Careers Page</span>
             </a>
             <button type="button" class="btn btn-danger" id="addBtn">
                 <i class="bi bi-plus-lg"></i>
@@ -34,7 +34,7 @@
         <div class="template-summary-row">
             <div>
                 <strong id="templateCount">0 Templates</strong>
-                <span>Drag sections and fields inside the builder to control display order.</span>
+                <span>Drag templates to reorder them. Inside the builder, drag sections and fields to control their order.</span>
             </div>
             <button type="button" class="btn btn-light" id="refreshBtn">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -87,7 +87,8 @@
                             </div>
                             <div class="col-lg-2 col-md-3">
                                 <label class="form-label">Display Order</label>
-                                <input type="number" name="sort_order" id="sort_order" class="form-control" min="0" value="0">
+                                <input type="number" name="sort_order" id="sort_order" class="form-control" min="1" value="1">
+                                <small class="text-muted d-block mt-1">Occupied orders swap automatically.</small>
                             </div>
                             <div class="col-lg-2 col-md-4">
                                 <label class="form-label">Status</label>
@@ -177,7 +178,7 @@
 <style>
 .template-manager-shell{overflow:hidden;border:1px solid #e9edf3;border-radius:24px;background:#fff;box-shadow:0 18px 46px rgba(15,23,42,.08)}
 .template-manager-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 28px;border-bottom:1px solid #edf1f5;background:radial-gradient(circle at top right,rgba(237,28,36,.10),transparent 36%),linear-gradient(180deg,#fff,#fcfcfd)}
-.template-manager-heading{display:flex;align-items:center;gap:16px}.template-manager-icon{width:54px;height:54px;min-width:54px;display:grid;place-items:center;border-radius:17px;color:#fff;background:linear-gradient(135deg,#ed1c24,#a30d13);box-shadow:0 12px 26px rgba(237,28,36,.24);font-size:22px}.template-manager-kicker{display:block;margin-bottom:4px;color:#ed1c24;font-size:9px;font-weight:800;letter-spacing:.16em}.template-manager-heading h4{margin:0;color:#17233e;font-size:21px;font-weight:800}.template-manager-heading p{margin:4px 0 0;color:#8b96a9;font-size:12px}.template-manager-actions{display:flex;gap:10px}.template-manager-actions .btn{min-height:42px;display:inline-flex;align-items:center;gap:8px;border-radius:12px;font-size:13px;font-weight:700}.template-manager-body{padding:24px 26px 28px}.template-summary-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.template-summary-row strong,.template-summary-row span{display:block}.template-summary-row strong{color:#26334d;font-size:15px}.template-summary-row span{margin-top:3px;color:#929daf;font-size:11px}.template-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.template-card{position:relative;overflow:hidden;border:1px solid #e6ebf1;border-radius:18px;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.05);transition:.2s ease}.template-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,23,42,.09)}.template-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 20px 16px}.template-card-identity{display:flex;gap:13px;min-width:0}.template-card-icon{width:46px;height:46px;min-width:46px;display:grid;place-items:center;border-radius:14px;color:#fff;background:linear-gradient(135deg,#ed1c24,#b40e15);font-size:19px}.template-card h5{margin:0;color:#1f2c46;font-size:16px;font-weight:800}.template-card p{margin:4px 0 0;color:#8d98aa;font-size:11px;line-height:1.55}.template-card-badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.template-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;color:#58667e;background:#f1f4f8;font-size:10px;font-weight:700}.template-pill.active{color:#fff;background:#16a34a}.template-pill.inactive{color:#fff;background:#64748b}.template-card-stats{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid #eef2f6;border-bottom:1px solid #eef2f6;background:#fafbfd}.template-stat{padding:13px 18px}.template-stat+ .template-stat{border-left:1px solid #eef2f6}.template-stat strong,.template-stat span{display:block}.template-stat strong{color:#23304a;font-size:16px}.template-stat span{margin-top:2px;color:#98a2b3;font-size:10px}.template-card-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px}.template-card-actions .btn{width:36px;height:36px;display:grid;place-items:center;padding:0;border-radius:10px}.template-empty{padding:55px 20px;text-align:center}.template-empty-icon{width:66px;height:66px;display:grid;place-items:center;margin:0 auto 14px;border-radius:20px;color:#ed1c24;background:#fff0f1;font-size:26px}.template-empty h5{color:#23304a}.template-empty p{color:#8c97a9;font-size:12px}
+.template-manager-heading{display:flex;align-items:center;gap:16px}.template-manager-icon{width:54px;height:54px;min-width:54px;display:grid;place-items:center;border-radius:17px;color:#fff;background:linear-gradient(135deg,#ed1c24,#a30d13);box-shadow:0 12px 26px rgba(237,28,36,.24);font-size:22px}.template-manager-kicker{display:block;margin-bottom:4px;color:#ed1c24;font-size:9px;font-weight:800;letter-spacing:.16em}.template-manager-heading h4{margin:0;color:#17233e;font-size:21px;font-weight:800}.template-manager-heading p{margin:4px 0 0;color:#8b96a9;font-size:12px}.template-manager-actions{display:flex;gap:10px}.template-manager-actions .btn{min-height:42px;display:inline-flex;align-items:center;gap:8px;border-radius:12px;font-size:13px;font-weight:700}.template-manager-body{padding:24px 26px 28px}.template-summary-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.template-summary-row strong,.template-summary-row span{display:block}.template-summary-row strong{color:#26334d;font-size:15px}.template-summary-row span{margin-top:3px;color:#929daf;font-size:11px}.template-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.template-card{position:relative;overflow:hidden;border:1px solid #e6ebf1;border-radius:18px;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.05);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.template-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(15,23,42,.09)}.template-card.is-dragging{opacity:.48;transform:scale(.985);box-shadow:none}.template-card.is-drag-over{border-color:#ed1c24;box-shadow:0 0 0 3px rgba(237,28,36,.09),0 16px 34px rgba(15,23,42,.08)}.template-card-drag{position:absolute;right:16px;top:16px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #e7ebf1;border-radius:10px;color:#8c98aa;background:#fff;cursor:grab;z-index:2}.template-card-drag:active{cursor:grabbing}.template-card-drag i{font-size:17px;line-height:1}.template-order-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border-radius:999px;color:#8b1620;background:#fff0f1;font-size:10px;font-weight:800}.template-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 64px 16px 20px}.template-card-identity{display:flex;gap:13px;min-width:0}.template-card-icon{width:46px;height:46px;min-width:46px;display:grid;place-items:center;border-radius:14px;color:#fff;background:linear-gradient(135deg,#ed1c24,#b40e15);font-size:19px}.template-card h5{margin:0;color:#1f2c46;font-size:16px;font-weight:800}.template-card p{margin:4px 0 0;color:#8d98aa;font-size:11px;line-height:1.55}.template-card-badges{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.template-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;color:#58667e;background:#f1f4f8;font-size:10px;font-weight:700}.template-pill.active{color:#fff;background:#16a34a}.template-pill.inactive{color:#fff;background:#64748b}.template-card-stats{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid #eef2f6;border-bottom:1px solid #eef2f6;background:#fafbfd}.template-stat{padding:13px 18px}.template-stat+ .template-stat{border-left:1px solid #eef2f6}.template-stat strong,.template-stat span{display:block}.template-stat strong{color:#23304a;font-size:16px}.template-stat span{margin-top:2px;color:#98a2b3;font-size:10px}.template-card-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px}.template-card-actions .btn{width:36px;height:36px;display:grid;place-items:center;padding:0;border-radius:10px}.template-empty{padding:55px 20px;text-align:center}.template-empty-icon{width:66px;height:66px;display:grid;place-items:center;margin:0 auto 14px;border-radius:20px;color:#ed1c24;background:#fff0f1;font-size:26px}.template-empty h5{color:#23304a}.template-empty p{color:#8c97a9;font-size:12px}
 .template-builder-modal{padding:14px!important;overflow:hidden}.template-builder-modal .modal-dialog{width:min(1240px,calc(100vw - 28px));max-width:1240px;height:calc(100dvh - 28px);margin:14px auto}.template-builder-modal .modal-content,.template-builder-modal #templateForm{height:100%;overflow:hidden;border:0;border-radius:22px}.template-builder-modal #templateForm{display:flex;flex-direction:column}.template-modal-header{position:relative;display:flex;align-items:center;gap:14px;flex:0 0 auto;padding:20px 58px 20px 22px;color:#fff;background:radial-gradient(circle at top right,rgba(255,255,255,.13),transparent 34%),linear-gradient(135deg,#151d34,#26304d 65%,#8f1117)}.template-modal-icon{width:48px;height:48px;min-width:48px;display:grid;place-items:center;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);font-size:20px}.template-modal-header span{display:block;color:#ff9095;font-size:9px;font-weight:800;letter-spacing:.15em}.template-modal-header h5{margin:3px 0 0;color:#fff;font-size:18px;font-weight:800}.template-modal-header p{margin:3px 0 0;color:rgba(255,255,255,.62);font-size:11px}.template-modal-header .btn-close{position:absolute;right:18px;top:18px}.template-builder-modal .modal-body{flex:1 1 auto;min-height:0;padding:22px;overflow-y:auto;background:#f6f8fb}.template-builder-modal .modal-footer{flex:0 0 auto;padding:13px 22px;border-top:1px solid #e8edf3;background:#fff;box-shadow:0 -8px 24px rgba(15,23,42,.05)}.template-config-card{padding:18px;border:1px solid #e4e9ef;border-radius:17px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.035)}.builder-workspace{margin-top:20px}.builder-workspace-header{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px}.builder-kicker{display:block;margin-bottom:4px;color:#ed1c24;font-size:9px;font-weight:800;letter-spacing:.15em}.builder-workspace-header h5{margin:0;color:#23304a;font-size:17px;font-weight:800}.builder-workspace-header p{margin:4px 0 0;color:#8e99ab;font-size:11px}.builder-workspace-actions{display:flex;gap:9px}.section-board{display:flex;flex-direction:column;gap:14px}.section-card{border:1px solid #dfe5ec;border-radius:17px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.04)}.section-card.dragging,.field-card.dragging{opacity:.42}.section-card.drag-over,.field-dropzone.drag-over{outline:2px dashed #ed1c24;outline-offset:3px}.section-card-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #edf1f5;background:linear-gradient(180deg,#fff,#fafbfd)}.drag-handle{cursor:grab;color:#9aa5b6;font-size:18px}.drag-handle:active{cursor:grabbing}.section-title-input{min-width:0;flex:1;border:0;background:transparent;color:#24314a;font-size:14px;font-weight:800;outline:none}.section-count{padding:5px 8px;border-radius:999px;color:#66738a;background:#eef2f6;font-size:9px;font-weight:700}.section-action-btn{width:32px;height:32px;display:grid;place-items:center;padding:0;border-radius:9px}.field-dropzone{min-height:26px;padding:12px}.field-card{position:relative;margin-bottom:10px;border:1px solid #e3e8ef;border-radius:14px;background:#fff;box-shadow:0 5px 15px rgba(15,23,42,.035)}.field-card:last-child{margin-bottom:0}.field-card.is-duplicate{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.08)}.field-card-header{display:flex;align-items:center;gap:10px;padding:12px 13px;border-bottom:1px solid #eff2f6;background:#fcfdfe}.field-card-title{min-width:0;flex:1;color:#2a3750;font-size:13px;font-weight:800}.field-type-chip{padding:5px 8px;border-radius:8px;color:#6b768a;background:#eef2f6;font-size:9px;font-weight:700;text-transform:uppercase}.field-remove{width:31px;height:31px;display:grid;place-items:center;padding:0;border-radius:8px}.field-card-body{padding:14px}.options-wrap{display:none}.options-wrap.is-visible{display:block}.field-key-feedback{display:block;min-height:16px;margin-top:4px;font-size:10px}.field-key-feedback.error{color:#dc2626}.field-key-feedback.success{color:#16a34a}.builder-alert{display:flex;align-items:center;gap:8px;padding:11px 13px;margin-bottom:12px;border:1px solid #fecaca;border-radius:11px;color:#991b1b;background:#fee2e2;font-size:11px}.builder-empty{padding:38px;text-align:center;border:1px dashed #d7dee8;border-radius:17px;color:#8c97a9;background:rgba(255,255,255,.55)}.builder-empty i{font-size:28px;color:#ed1c24}.builder-empty h6{margin:8px 0 3px;color:#334159}.builder-empty p{margin:0;font-size:11px}.section-picker-modal{border:0;border-radius:18px;overflow:hidden}.section-picker-modal .modal-header{padding:18px 20px}.section-picker-modal .modal-header h5{margin:0;color:#23304a;font-weight:800}.section-picker-modal .modal-header p{color:#8e99aa;font-size:11px}.section-divider{position:relative;margin:16px 0;text-align:center}.section-divider:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#e7ebf1}.section-divider span{position:relative;padding:0 10px;color:#9ba5b5;background:#fff;font-size:9px;font-weight:800}.form-control,.form-select{border-radius:10px}.form-control:focus,.form-select:focus{border-color:#ed1c24;box-shadow:0 0 0 4px rgba(237,28,36,.08)}
 @media(max-width:991.98px){.template-card-grid{grid-template-columns:1fr}.template-manager-header,.builder-workspace-header{align-items:flex-start;flex-direction:column}.template-manager-actions,.builder-workspace-actions{width:100%}.template-manager-actions .btn,.builder-workspace-actions .btn{flex:1}.template-builder-modal{padding:0!important}.template-builder-modal .modal-dialog{width:100%;height:100dvh;margin:0}.template-builder-modal .modal-content{border-radius:0}}
 @media(max-width:575.98px){.template-manager-header,.template-manager-body{padding:18px}.template-manager-heading{align-items:flex-start}.template-manager-actions,.builder-workspace-actions{flex-direction:column}.template-manager-actions .btn,.builder-workspace-actions .btn{width:100%}.template-summary-row{align-items:flex-start;flex-direction:column}.template-summary-row .btn{width:100%}.template-modal-header{padding:16px 48px 16px 14px}.template-builder-modal .modal-body{padding:14px}.template-builder-modal .modal-footer{display:grid;grid-template-columns:1fr 1.3fr;gap:9px;padding:11px 14px}.template-builder-modal .modal-footer .btn{width:100%}.section-card-header{flex-wrap:wrap}.section-title-input{order:2;flex-basis:calc(100% - 45px)}}
@@ -192,12 +193,14 @@ $(document).ready(function () {
     const sectionModal = new bootstrap.Modal(document.getElementById('sectionModal'));
 
     let availableSections = [];
+    let draggedTemplate = null;
     let draggedSection = null;
     let draggedField = null;
 
     const routes = {
         data: @json(route($prefix.'.forms.data')),
         sections: @json(route($prefix.'.forms.sections')),
+        reorder: @json(route($prefix.'.forms.reorder')),
         store: @json(route($prefix.'.forms.store')),
         show: @json(route($prefix.'.forms.show', ':id')),
         update: @json(route($prefix.'.forms.update', ':id')),
@@ -255,7 +258,8 @@ $(document).ready(function () {
                     const statusLabel = row.is_active ? 'Active' : 'Inactive';
 
                     $('#templateGrid').append(`
-                        <article class="template-card">
+                        <article class="template-card" data-id="${row.id}" data-order="${row.sort_order}">
+                            <span class="template-card-drag" draggable="true" title="Drag to reorder" aria-label="Drag template"><i class="bi bi-grip-vertical"></i></span>
                             <div class="template-card-top">
                                 <div class="template-card-identity">
                                     <div class="template-card-icon"><i class="bi ${icon}"></i></div>
@@ -265,6 +269,7 @@ $(document).ready(function () {
                                         <div class="template-card-badges">
                                             <span class="template-pill">${typeLabel}</span>
                                             <span class="template-pill ${statusClass}">${statusLabel}</span>
+                                            <span class="template-order-pill"><i class="bi bi-list-ol"></i> Order ${row.sort_order}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -467,6 +472,7 @@ $(document).ready(function () {
         clearErrors();
         $('#templateForm')[0].reset();
         $('#record_id').val('');
+        $('#sort_order').val(Math.max(1, $('#templateGrid .template-card').length + 1));
         $('#sectionsBoard').empty();
         createSection('General Information');
         createField({}, $('#sectionsBoard .section-card').first(), true);
@@ -486,6 +492,78 @@ $(document).ready(function () {
             resetForm();
             formModal.show();
         });
+    });
+
+    function saveTemplateOrder() {
+        const order = $('#templateGrid .template-card').map(function () {
+            return Number($(this).data('id'));
+        }).get().filter(Boolean);
+
+        if (!order.length) return;
+
+        $.ajax({
+            url: routes.reorder,
+            type: 'POST',
+            data: { order: order },
+            success: function (response) {
+                showToast('success', response.message || 'Template display order updated.');
+                loadTemplates();
+            },
+            error: function (xhr) {
+                loadTemplates();
+                Swal.fire('Unable to Reorder', xhr.responseJSON?.message || 'The template order could not be saved.', 'error');
+            }
+        });
+    }
+
+    // Drag-and-drop for the template cards on the main Form Templates screen.
+    $('#templateGrid').on('dragstart', '.template-card-drag', function (event) {
+        draggedTemplate = $(this).closest('.template-card')[0];
+        $(draggedTemplate).addClass('is-dragging');
+        event.originalEvent.dataTransfer.effectAllowed = 'move';
+        event.originalEvent.dataTransfer.setData('text/plain', String($(draggedTemplate).data('id')));
+    });
+
+    $('#templateGrid').on('dragend', '.template-card-drag', function () {
+        if (draggedTemplate) $(draggedTemplate).removeClass('is-dragging');
+        $('#templateGrid .template-card').removeClass('is-drag-over');
+        draggedTemplate = null;
+    });
+
+    $('#templateGrid').on('dragover', '.template-card', function (event) {
+        if (!draggedTemplate || draggedTemplate === this) return;
+        event.preventDefault();
+        event.originalEvent.dataTransfer.dropEffect = 'move';
+        $('#templateGrid .template-card').removeClass('is-drag-over');
+        $(this).addClass('is-drag-over');
+    });
+
+    $('#templateGrid').on('dragleave', '.template-card', function () {
+        $(this).removeClass('is-drag-over');
+    });
+
+    $('#templateGrid').on('drop', '.template-card', function (event) {
+        if (!draggedTemplate || draggedTemplate === this) return;
+        event.preventDefault();
+        $(this).removeClass('is-drag-over');
+
+        const grid = $('#templateGrid')[0];
+        const cards = [...grid.querySelectorAll('.template-card')];
+        const draggedIndex = cards.indexOf(draggedTemplate);
+        const targetIndex = cards.indexOf(this);
+
+        if (draggedIndex < targetIndex) {
+            grid.insertBefore(draggedTemplate, this.nextSibling);
+        } else {
+            grid.insertBefore(draggedTemplate, this);
+        }
+
+        $('#templateGrid .template-card').each(function (index) {
+            $(this).attr('data-order', index + 1).data('order', index + 1);
+            $(this).find('.template-order-pill').html(`<i class="bi bi-list-ol"></i> Order ${index + 1}`);
+        });
+
+        saveTemplateOrder();
     });
 
     $('#refreshBtn').on('click', loadTemplates);
@@ -600,7 +678,7 @@ $(document).ready(function () {
             $('#type').val(response.type);
             $('#description').val(response.description);
             $('#is_active').val(response.is_active ? 1 : 0);
-            $('#sort_order').val(response.sort_order || 0);
+            $('#sort_order').val(Math.max(1, Number(response.sort_order) || 1));
             $('#sectionsBoard').empty();
 
             const sectionMap = new Map();
@@ -699,6 +777,14 @@ $(document).ready(function () {
                 $('#saveBtn').prop('disabled', false).text(id ? 'Update Template' : 'Save Template');
             }
         });
+    });
+
+    // Arm native dragging from the grip handles so form controls remain fully editable.
+    $('#sectionsBoard').on('mousedown touchstart', '.section-drag-handle', function () {
+        $(this).closest('.section-card').attr('draggable', 'true');
+    });
+    $('#sectionsBoard').on('mousedown touchstart', '.field-drag-handle', function () {
+        $(this).closest('.field-card').attr('draggable', 'true');
     });
 
     // Native drag-and-drop for sections.

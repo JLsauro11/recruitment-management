@@ -19,7 +19,7 @@ class DashboardController extends Controller
             'today_interviews' => Interview::whereDate('scheduled_at', today())->where('status', 'Scheduled')->count(),
             'pending_results' => Application::where('status', 'For Questionnaire Review')->count(),
             'for_job_offer' => Application::where('status', 'For Job Offer')->count(),
-            'active_vacancies' => JobVacancy::where('status', 'Open')->count(),
+            'active_vacancies' => JobVacancy::openForApplications()->count(),
         ];
 
         $priorityApplicants = Application::with(['applicant','vacancy'])

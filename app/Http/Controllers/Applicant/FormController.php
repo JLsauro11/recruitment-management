@@ -22,54 +22,79 @@ use Illuminate\View\View;
 
 class FormController extends Controller
 {
-    private const DUPLICATE_APPLICATION_MESSAGE = 'An application using this email address has already been submitted for the selected vacancy. Please choose a different job vacancy or use a different email address.';
+    private const DUPLICATE_APPLICATION_MESSAGE = 'An application using this email address has already been submitted for this vacancy. Please use a different email address or return to the job openings to choose another position.';
 
-    public function index(): View
+    public function careers(): View
     {
+        JobVacancy::syncExpiredStatuses();
+
+        $vacancies = $this->activeVacancyQuery()
+            ->with('position.department')
+            ->latest('created_at')
+            ->latest('id')
+            ->get();
+
+        return view('applicant.careers.index', compact('vacancies'));
+    }
+
+    public function selectVacancy(Request $request, JobVacancy $vacancy): RedirectResponse
+    {
+        $vacancy = $this->activeVacancyQuery()
+            ->whereKey($vacancy->id)
+            ->first();
+
+        if (!$vacancy) {
+            return redirect()->route('careers.index')
+                ->with('career_error', 'That job vacancy is no longer accepting applications.');
+        }
+
+        // The selected vacancy is stored server-side. The application page does not
+        // accept a vacancy id from the URL or from a hidden form field.
+        $request->session()->put('selected_job_vacancy_id', $vacancy->id);
+        $request->session()->put('selected_job_vacancy_at', now()->timestamp);
+
+        return redirect()->route('careers.apply');
+    }
+
+    public function index(Request $request): View|RedirectResponse
+    {
+        $vacancy = $this->selectedVacancyFromSession($request);
+
+        if (!$vacancy) {
+            return redirect()->to(route('careers.index') . '#open-positions')
+                ->with('career_error', 'Please select an open position before starting your application.');
+        }
+
         $templates = FormTemplate::with([
             'fields' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
         ])
             ->where('is_active', true)
-        ->orderBy('sort_order')
-        ->orderBy('id')
-        ->get();
-
-        $vacancies = JobVacancy::with('position.department')
-            ->where('status', 'Open')
-            ->whereDate('opening_date', '<=', today())
-            ->where(fn ($query) => $query
-        ->whereNull('closing_date')
-        ->orWhereDate('closing_date', '>=', today()))
-            ->orderBy('title')
-        ->get();
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
         $existingAnswers = collect();
 
         return view('applicant.form.index', compact(
             'templates',
-            'vacancies',
+            'vacancy',
             'existingAnswers'
         ));
     }
 
     public function validateStep(Request $request): JsonResponse
     {
+        if (!$this->selectedVacancyFromSession($request)) {
+            throw ValidationException::withMessages([
+                'form' => 'Your selected job vacancy is missing or no longer available. Please return to the careers page and select an open position.',
+            ]);
+        }
+
         $request->validate([
-            'step_type' => ['required', Rule::in(['position', 'form_section'])],
+            'step_type' => ['required', Rule::in(['form_section'])],
             'template_id' => ['nullable', 'integer'],
             'section' => ['nullable', 'string', 'max:150'],
         ]);
-
-        if ($request->input('step_type') === 'position') {
-            $request->validate([
-                'job_vacancy_id' => $this->vacancyRules(),
-            ], [
-                'job_vacancy_id.required' => 'Please select an open job vacancy.',
-                'job_vacancy_id.exists' => 'The selected vacancy is closed, expired, or unavailable.',
-            ]);
-
-            return response()->json(['valid' => true]);
-        }
 
         $request->validate([
             'template_id' => [
@@ -115,6 +140,13 @@ class FormController extends Controller
 
     public function submit(Request $request): RedirectResponse
     {
+        $vacancy = $this->selectedVacancyFromSession($request);
+
+        if (!$vacancy) {
+            return redirect()->to(route('careers.index') . '#open-positions')
+                ->with('career_error', 'Please select an open position before submitting an application.');
+        }
+
         $templates = FormTemplate::with([
             'fields' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
         ])
@@ -139,32 +171,16 @@ class FormController extends Controller
         }
 
         $rules = [
-            'job_vacancy_id' => $this->vacancyRules(),
             'answers' => ['required', 'array'],
         ];
 
         $rules = array_merge($rules, $this->buildFieldRules($allFields));
 
-        $validated = $request->validate(
+        $request->validate(
             $rules,
             $this->validationMessages(),
             $this->validationAttributes($allFields)
         );
-
-        $vacancy = JobVacancy::query()
-            ->whereKey($validated['job_vacancy_id'])
-            ->where('status', 'Open')
-            ->whereDate('opening_date', '<=', today())
-            ->where(fn ($query) => $query
-        ->whereNull('closing_date')
-        ->orWhereDate('closing_date', '>=', today()))
-            ->first();
-
-        if (!$vacancy) {
-            throw ValidationException::withMessages([
-                'job_vacancy_id' => 'The selected vacancy is no longer accepting applications.',
-            ]);
-        }
 
         $answerByKey = [];
         foreach ($allFields as $field) {
@@ -186,7 +202,7 @@ class FormController extends Controller
         if ($existingApplicant && $existingApplicant->applications()
                 ->where('job_vacancy_id', $vacancy->id)->exists()) {
             throw ValidationException::withMessages([
-                'job_vacancy_id' => self::DUPLICATE_APPLICATION_MESSAGE,
+                'form' => self::DUPLICATE_APPLICATION_MESSAGE,
                 'answers.' . $emailField->id => self::DUPLICATE_APPLICATION_MESSAGE,
             ]);
         }
@@ -282,6 +298,8 @@ class FormController extends Controller
             'parameters' => ['application' => $application->id],
         ]);
 
+        $request->session()->forget(['selected_job_vacancy_id', 'selected_job_vacancy_at']);
+
         return redirect()->route('careers.success')
             ->with('application_reference', $application->reference_no)
             ->with('applicant_name', trim($firstName . ' ' . $lastName));
@@ -290,26 +308,39 @@ class FormController extends Controller
     public function success(): View|RedirectResponse
     {
         if (!session()->has('application_reference')) {
-            return redirect()->route('careers.apply');
+            return redirect()->route('careers.index');
         }
 
 return view('applicant.form.success');
 }
 
-private function vacancyRules(): array
+private function activeVacancyQuery()
 {
-    return [
-        'bail',
-        'required',
-        'integer',
-        Rule::exists('job_vacancies', 'id')->where(function ($query) {
-            $query->where('status', 'Open')
-                ->whereDate('opening_date', '<=', today())
-                ->where(fn ($dateQuery) => $dateQuery
-                ->whereNull('closing_date')
-                ->orWhereDate('closing_date', '>=', today()));
-            }),
-    ];
+    return JobVacancy::query()->openForApplications();
+}
+
+private function selectedVacancyFromSession(Request $request): ?JobVacancy
+{
+    $selectedId = $request->session()->get('selected_job_vacancy_id');
+    $selectedAt = (int) $request->session()->get('selected_job_vacancy_at', 0);
+
+    // Do not keep a stale selection around indefinitely. Laravel sessions normally
+    // expire too, but this keeps the application entry gate explicit.
+    if (!$selectedId || !$selectedAt || now()->timestamp - $selectedAt > 7200) {
+        $request->session()->forget(['selected_job_vacancy_id', 'selected_job_vacancy_at']);
+        return null;
+    }
+
+    $vacancy = $this->activeVacancyQuery()
+        ->with('position.department')
+        ->whereKey($selectedId)
+        ->first();
+
+    if (!$vacancy) {
+        $request->session()->forget(['selected_job_vacancy_id', 'selected_job_vacancy_at']);
+    }
+
+    return $vacancy;
 }
 
 private function buildFieldRules(Collection $fields): array
@@ -379,8 +410,6 @@ private function buildFieldRules(Collection $fields): array
 private function validationMessages(): array
 {
     return [
-        'job_vacancy_id.required' => 'Please select an open job vacancy.',
-        'job_vacancy_id.exists' => 'The selected vacancy is closed, expired, or unavailable.',
         'answers.required' => 'The employment application form is required.',
         'answers.array' => 'The submitted employment form data is invalid.',
         'answers.*.required' => 'This field is required.',
@@ -401,7 +430,6 @@ private function validationMessages(): array
 private function validationAttributes(Collection $fields): array
 {
     $attributes = [
-        'job_vacancy_id' => 'job vacancy',
         'answers' => 'employment application',
     ];
 

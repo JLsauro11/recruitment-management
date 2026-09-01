@@ -19,8 +19,11 @@ class FormTemplateController extends Controller
 
     public function data(): JsonResponse
     {
+        // Keep legacy/duplicate values clean so every template always has one unique order.
+        $this->normalizeTemplateOrders();
+
         $templates = FormTemplate::withCount(['fields', 'submissions'])
-            ->orderBy('sort_order')->orderBy('name')->get()->map(fn ($template) => [
+            ->orderBy('sort_order')->orderBy('id')->get()->map(fn ($template) => [
                 'id' => $template->id,
                 'name' => $template->name,
                 'type' => $template->type,
@@ -28,6 +31,7 @@ class FormTemplateController extends Controller
                 'fields_count' => $template->fields_count,
                 'submissions_count' => $template->submissions_count,
                 'is_active' => $template->is_active,
+                'sort_order' => (int) $template->sort_order,
             ]);
 
         return response()->json(['data' => $templates]);
@@ -65,7 +69,22 @@ class FormTemplateController extends Controller
         $data = $this->validated($request);
 
         DB::transaction(function () use ($data) {
-            $template = FormTemplate::create(collect($data)->except('fields')->all());
+            $this->normalizeTemplateOrders();
+
+            $nextOrder = ((int) FormTemplate::max('sort_order')) + 1;
+            $requestedOrder = max(1, (int) ($data['sort_order'] ?? $nextOrder));
+            $requestedOrder = min($requestedOrder, max(1, $nextOrder));
+
+            // A new template starts at the end. If the requested position is occupied,
+            // swap the existing template to that end position instead of creating duplicates.
+            $occupied = FormTemplate::where('sort_order', $requestedOrder)->first();
+            if ($occupied) {
+                $occupied->update(['sort_order' => $nextOrder]);
+            }
+
+            $templateData = collect($data)->except('fields')->all();
+            $templateData['sort_order'] = $requestedOrder;
+            $template = FormTemplate::create($templateData);
             $this->syncFields($template, $data['fields']);
         });
 
@@ -77,11 +96,69 @@ class FormTemplateController extends Controller
         $data = $this->validated($request, $formTemplate);
 
         DB::transaction(function () use ($data, $formTemplate) {
-            $formTemplate->update(collect($data)->except('fields')->all());
+            $this->normalizeTemplateOrders();
+            $formTemplate->refresh();
+
+            $oldOrder = max(1, (int) $formTemplate->sort_order);
+            $maxOrder = max(1, (int) FormTemplate::count());
+            $requestedOrder = max(1, (int) ($data['sort_order'] ?? $oldOrder));
+            $requestedOrder = min($requestedOrder, $maxOrder);
+
+            if ($requestedOrder !== $oldOrder) {
+                $occupied = FormTemplate::where('id', '!=', $formTemplate->getKey())
+                    ->where('sort_order', $requestedOrder)
+                    ->first();
+
+                // Exact swap: the template already using the requested order takes
+                // the edited template's previous order.
+                if ($occupied) {
+                    // Free the old slot first, then complete the swap. This also works
+                    // if sort_order later receives a unique database index.
+                    $formTemplate->update(['sort_order' => 100000 + (int) $formTemplate->getKey()]);
+                    $occupied->update(['sort_order' => $oldOrder]);
+                }
+            }
+
+            $templateData = collect($data)->except('fields')->all();
+            $templateData['sort_order'] = $requestedOrder;
+            $formTemplate->update($templateData);
             $this->syncFields($formTemplate, $data['fields'], true);
         });
 
         return response()->json(['message' => 'Form template updated successfully.']);
+    }
+
+    public function reorder(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'order' => ['required', 'array', 'min:1'],
+            'order.*' => ['required', 'integer', 'distinct', 'exists:form_templates,id'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            $ids = array_values($data['order']);
+
+            // Move to temporary values first so this remains safe even if a unique
+            // database index is added to sort_order later.
+            foreach ($ids as $index => $id) {
+                FormTemplate::whereKey($id)->update(['sort_order' => 100000 + $index]);
+            }
+
+            foreach ($ids as $index => $id) {
+                FormTemplate::whereKey($id)->update(['sort_order' => $index + 1]);
+            }
+
+            // Append any templates not included in the submitted DOM order.
+            $next = count($ids) + 1;
+            FormTemplate::whereNotIn('id', $ids)
+                ->orderBy('sort_order')->orderBy('id')
+                ->get()
+                ->each(function (FormTemplate $template) use (&$next) {
+                    $template->update(['sort_order' => $next++]);
+                });
+        });
+
+        return response()->json(['message' => 'Template display order updated.']);
     }
 
     public function destroy(FormTemplate $formTemplate): JsonResponse
@@ -103,7 +180,7 @@ class FormTemplateController extends Controller
             'type' => ['required', Rule::in(['application', 'questionnaire'])],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['required', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'sort_order' => ['nullable', 'integer', 'min:1'],
             'fields' => ['required', 'array', 'min:1'],
             'fields.*.section' => ['nullable', 'string', 'max:150'],
             'fields.*.label' => ['required', 'string', 'max:255'],
@@ -118,6 +195,22 @@ class FormTemplateController extends Controller
             'fields.*.field_key.distinct' => 'Each field key must be unique within the template.',
             'fields.*.field_key.regex' => 'Field keys may only contain lowercase letters, numbers, and underscores.',
         ]);
+    }
+
+    private function normalizeTemplateOrders(): void
+    {
+        $templates = FormTemplate::query()
+            ->orderByRaw('CASE WHEN sort_order IS NULL OR sort_order < 1 THEN 1 ELSE 0 END')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($templates as $index => $template) {
+            $expected = $index + 1;
+            if ((int) $template->sort_order !== $expected) {
+                $template->update(['sort_order' => $expected]);
+            }
+        }
     }
 
     private function syncFields(FormTemplate $template, array $fields, bool $removeMissing = false): void
