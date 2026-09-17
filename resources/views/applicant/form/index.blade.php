@@ -26,6 +26,7 @@
 
         <form method="POST" action="{{ route('careers.submit') }}" enctype="multipart/form-data" id="employmentForm" novalidate>
             @csrf
+            <input type="hidden" name="employment_record_count" id="employmentRecordCount" value="{{ old('employment_record_count', 1) }}">
 
             <div class="employment-shell">
                 <aside class="application-sidebar">
@@ -99,6 +100,23 @@
                                     <p>{{ $step['subtitle'] }}</p>
                                 </div>
 
+                                @if($step['key'] !== 'review' && $step['title'] === 'Educational Background')
+                                    <div class="evidence-guidance">
+                                        <i class="bi bi-mortarboard-fill"></i>
+                                        <div><strong>Keep your education history simple.</strong><span>School history is used as background context. Degree / Course is considered only when the vacancy has an education requirement, and applicant-declared information remains subject to HR verification.</span></div>
+                                    </div>
+                                @elseif($step['key'] !== 'review' && $step['title'] === 'Employment History')
+                                    <div class="evidence-guidance">
+                                        <i class="bi bi-briefcase-fill"></i>
+                                        <div><strong>Add only the employers you actually worked for.</strong><span>One employment record is shown first. Use + Add Another Employment only when needed. Detailed skills, tools, responsibilities, and results are asked once in the Role-Specific Assessment to avoid repeating questions.</span></div>
+                                    </div>
+                                @elseif($step['key'] !== 'review' && $step['title'] === 'Role-Specific Assessment')
+                                    <div class="evidence-guidance">
+                                        <i class="bi bi-stars"></i>
+                                        <div><strong>Use specific, verifiable examples.</strong><span>The problem-solving example is separated into Situation, Action, and Result so the system does not have to guess which part of your answer proves each signal.</span></div>
+                                    </div>
+                                @endif
+
                                 @if($step['key'] === 'review')
                                     <div class="review-panel">
                                         <div class="review-icon"><i class="bi bi-check2-circle"></i></div>
@@ -112,8 +130,43 @@
                                     </div>
                                 @else
                                     <div class="row g-4">
+                                        @php $lastRecordNo = null; @endphp
                                         @foreach($step['fields'] as $field)
-                                            <div class="col-12 col-lg-{{ $field->width ?: 12 }}">
+                                            @php
+                                                $recordNo = null;
+                                                if ($step['title'] === 'Employment History' && preg_match('/_([1-5])$/', $field->field_key ?? '', $recordMatch)) {
+                                                    $recordNo = (int) $recordMatch[1];
+                                                } elseif ($step['title'] === 'References' && preg_match('/_(1|2)$/', $field->field_key ?? '', $recordMatch)) {
+                                                    $recordNo = (int) $recordMatch[1];
+                                                }
+                                            @endphp
+
+                                            @if($recordNo && $recordNo !== $lastRecordNo)
+                                                <div class="col-12 {{ $step['title'] === 'Employment History' ? 'employment-record-hidden' : '' }}"
+                                                     @if($step['title'] === 'Employment History')
+                                                         data-employment-record="{{ $recordNo }}"
+                                                         data-employment-header="{{ $recordNo }}"
+                                                     @endif>
+                                                    <div class="d-flex align-items-center justify-content-between gap-3 px-3 py-2 rounded-4 border bg-light">
+                                                        <div>
+                                                            <span class="small text-uppercase fw-bold text-danger">{{ $step['title'] === 'Employment History' ? 'Employment Record' : 'Professional Reference' }} {{ $recordNo }}</span>
+                                                            <div class="small text-muted">{{ $step['title'] === 'Employment History' ? 'Company, position, and employment dates for this employer.' : 'Complete the details for one reference before moving to the next.' }}</div>
+                                                        </div>
+                                                        @if($step['title'] === 'Employment History' && $recordNo > 1)
+                                                            <button type="button" class="btn btn-sm btn-outline-danger employment-remove-btn" data-remove-employment-record="{{ $recordNo }}" title="Remove this employment record">
+                                                                <i class="bi bi-trash3"></i> Remove
+                                                            </button>
+                                                        @else
+                                                            <i class="bi {{ $step['title'] === 'Employment History' ? 'bi-briefcase' : 'bi-person-lines-fill' }} text-muted"></i>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                @php $lastRecordNo = $recordNo; @endphp
+                                            @endif
+
+                                            <div class="col-12 col-lg-{{ $field->width ?: 12 }} {{ $step['title'] === 'Employment History' && $recordNo ? 'employment-record-hidden' : '' }}"
+                                                 data-field-column="{{ $field->field_key }}"
+                                                 @if($step['title'] === 'Employment History' && $recordNo) data-employment-record="{{ $recordNo }}" @endif>
                                                 <div class="premium-field {{ $field->field_type === 'file' ? 'file-field' : '' }}" data-required="{{ $field->is_required ? '1' : '0' }}" data-field-label="{{ $field->label }}" data-field-key="{{ $field->field_key }}">
                                                     <label class="form-label">{{ $field->label }} @if($field->is_required)<span class="text-danger">*</span>@endif</label>
                                                     @php
@@ -150,14 +203,40 @@
                                                             <span class="selected-file-name">No file selected</span>
                                                         </label>
                                                     @else
-                                                        <input type="{{ $field->field_type }}" name="{{ $name }}" class="form-control" value="{{ $value }}" placeholder="{{ $field->placeholder }}" @required($field->is_required)>
+                                                        <input
+                                                            type="{{ $field->field_type }}"
+                                                            name="{{ $name }}"
+                                                            class="form-control"
+                                                            value="{{ $value }}"
+                                                            placeholder="{{ $field->placeholder }}"
+                                                            @required($field->is_required)
+                                                            @readonly($field->field_key === 'age')
+                                                            @if($field->field_key === 'cellphone_number' || str_starts_with($field->field_key, 'reference_phone_')) inputmode="tel" @endif
+                                                        >
                                                     @endif
+                                                    @php
+                                                        $fieldHelp = match (true) {
+                                                            $field->field_key === 'age' => 'Automatically calculated from Birthdate. Age is not used in Assessment Insights.',
+                                                            $field->field_key === 'role_tools_systems' => 'Use exact product/platform names when possible; generic words such as “system” are not treated as tool proof.',
+                                                            default => null,
+                                                        };
+                                                    @endphp
+                                                    @if($fieldHelp)<div class="field-help">{{ $fieldHelp }}</div>@endif
                                                     <div class="backend-error" data-error-for="answers.{{ $field->id }}">
                                                         @error('answers.'.$field->id){{ $message }}@enderror
                                                     </div>
                                                 </div>
                                             </div>
                                         @endforeach
+
+                                        @if($step['title'] === 'Employment History')
+                                            <div class="col-12" id="employmentRecordActions">
+                                                <button type="button" class="btn btn-outline-danger employment-add-btn" id="addEmploymentRecord">
+                                                    <i class="bi bi-plus-lg"></i> Add Another Employment Record
+                                                </button>
+                                                <div class="small text-muted mt-2">Add only when needed. Maximum of 5 employment records.</div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @endif
                             </section>
@@ -564,6 +643,43 @@
         min-width: 0;
     }
 
+    .evidence-guidance {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin: -4px 0 22px;
+        padding: 13px 15px;
+        border: 1px solid #e7ebf1;
+        border-radius: 14px;
+        background: #f8fafc;
+        color: #6b778d;
+        font-size: 11px;
+        line-height: 1.55;
+    }
+    .evidence-guidance > i { color: #dc1721; font-size: 17px; margin-top: 1px; }
+    .evidence-guidance strong, .evidence-guidance span { display: block; }
+    .evidence-guidance strong { color: #26334d; margin-bottom: 2px; font-size: 11px; }
+    .credential-record-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-top: 4px;
+        padding: 11px 14px;
+        border: 1px solid #e6eaf0;
+        border-left: 3px solid #dc1721;
+        border-radius: 12px;
+        background: linear-gradient(90deg, #fff7f7, #fff);
+    }
+    .credential-record-header span, .credential-record-header small { display: block; }
+    .credential-record-header span { color: #b7131c; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .credential-record-header small { margin-top: 2px; color: #8a94a7; font-size: 10px; }
+    .credential-record-header i { color: #d01a23; font-size: 17px; }
+    .field-help { margin-top: 6px; color: #8a94a7; font-size: 9px; line-height: 1.45; }
+    .premium-field.is-conditional-hidden { display: none; }
+    [data-field-column].is-conditional-hidden-column { display: none !important; }
+    [data-evidence-header].is-conditional-hidden-header { display: none !important; }
+
     .backend-error {
         display: block;
         width: 100%;
@@ -837,6 +953,9 @@
     .review-error-list { margin: 7px 0 0; padding-left: 17px; color: #b91c1c; font-size: 10px; line-height: 1.45; }
     .review-icon.has-errors { color: #dc2626; background: #fee2e2; }
     #submitBtn:disabled { cursor: not-allowed; opacity: .55; }
+    .employment-add-btn, .employment-remove-btn { font-weight: 700; border-radius: 10px; }
+    .employment-remove-btn { white-space: nowrap; }
+    [data-employment-record].employment-record-hidden { display: none !important; }
 </style>
 @endpush
 
@@ -856,6 +975,230 @@
         let current = 0;
 
         const serverErrors = @json($errors->toArray());
+
+        function wrapperForKey(key) {
+            return form.querySelector(`.premium-field[data-field-key="${CSS.escape(key)}"]`);
+        }
+
+        function inputForKey(key) {
+            return wrapperForKey(key)?.querySelector('input, select, textarea') || null;
+        }
+
+        function setRequiredByKey(key, required) {
+            const wrapper = wrapperForKey(key);
+            const input = inputForKey(key);
+            if (!wrapper || !input) return;
+            wrapper.dataset.required = required ? '1' : '0';
+            input.required = required;
+
+            const label = wrapper.querySelector('.form-label');
+            const dynamicStar = label?.querySelector('.dynamic-required-star');
+            const hasAnyStar = !!label?.querySelector('.text-danger');
+            if (required && label && !hasAnyStar) {
+                label.insertAdjacentHTML('beforeend', ' <span class="text-danger dynamic-required-star">*</span>');
+            } else if (!required && dynamicStar) {
+                dynamicStar.remove();
+            }
+        }
+
+        function setConditionalVisibility(key, visible, required = false) {
+            const wrapper = wrapperForKey(key);
+            const input = inputForKey(key);
+            if (!wrapper || !input) return;
+            wrapper.classList.toggle('is-conditional-hidden', !visible);
+            wrapper.closest('[data-field-column]')?.classList.toggle('is-conditional-hidden-column', !visible);
+            input.disabled = !visible;
+            setRequiredByKey(key, visible && required);
+            if (!visible) {
+                input.value = '';
+                input.setCustomValidity('');
+                clearSingleFieldValidation(input);
+            }
+        }
+
+        function todayIso() {
+            const date = new Date();
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function syncAgeFromBirthdate() {
+            const birthInput = inputForKey('birthdate');
+            const ageInput = inputForKey('age');
+            if (!birthInput || !ageInput) return;
+            ageInput.readOnly = true;
+            if (!birthInput.value) {
+                ageInput.value = '';
+                return;
+            }
+            const birth = new Date(`${birthInput.value}T00:00:00`);
+            const now = new Date();
+            if (Number.isNaN(birth.getTime()) || birth > now) {
+                ageInput.value = '';
+                return;
+            }
+            let age = now.getFullYear() - birth.getFullYear();
+            const beforeBirthday = (now.getMonth() < birth.getMonth())
+                || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate());
+            if (beforeBirthday) age--;
+            ageInput.value = Math.max(0, age);
+        }
+
+        function syncReferralField() {
+            const source = inputForKey('applied_through')?.value || '';
+            setConditionalVisibility('referred_by', source === 'Employee Referral', source === 'Employee Referral');
+        }
+
+        function syncNoticeRequirement() {
+            const status = inputForKey('current_employment_status')?.value || '';
+            const needsNotice = ['Employed', 'Self-Employed', 'Freelance / Project-Based'].includes(status);
+            setConditionalVisibility('notice_period', needsNotice, needsNotice);
+        }
+
+        const MAX_EMPLOYMENT_RECORDS = 5;
+        const employmentCountInput = document.getElementById('employmentRecordCount');
+        let rememberedEmploymentCount = Math.max(1, Math.min(MAX_EMPLOYMENT_RECORDS, Number(employmentCountInput?.value || 1)));
+
+        function employmentKeys(record) {
+            return [
+                `company_${record}`,
+                `company_address_${record}`,
+                `position_held_${record}`,
+                `employment_dates_${record}`,
+                `employment_end_${record}`,
+                `currently_employed_${record}`,
+            ];
+        }
+
+        function setEmploymentRecordVisibility(record, visible) {
+            form.querySelectorAll(`[data-employment-record="${record}"]`).forEach(node => {
+                node.classList.toggle('employment-record-hidden', !visible);
+            });
+
+            employmentKeys(record).forEach(key => {
+                const wrapper = wrapperForKey(key);
+                if (!wrapper) return;
+                const input = inputForKey(key);
+                if (!input) return;
+                if (!visible) {
+                    input.disabled = true;
+                    setRequiredByKey(key, false);
+                    input.setCustomValidity('');
+                    clearSingleFieldValidation(input);
+                } else {
+                    input.disabled = false;
+                }
+            });
+        }
+
+        function clearEmploymentRecord(record) {
+            employmentKeys(record).forEach(key => {
+                const input = inputForKey(key);
+                if (!input) return;
+                input.value = '';
+                input.setCustomValidity('');
+                clearSingleFieldValidation(input);
+            });
+        }
+
+        function syncEmploymentRecord(record, active) {
+            setEmploymentRecordVisibility(record, active);
+            if (!active) return;
+
+            ['company', 'company_address', 'position_held', 'employment_dates', 'currently_employed'].forEach(prefix => {
+                setRequiredByKey(`${prefix}_${record}`, true);
+            });
+
+            const currentInput = inputForKey(`currently_employed_${record}`);
+            const startInput = inputForKey(`employment_dates_${record}`);
+            const endInput = inputForKey(`employment_end_${record}`);
+            if (!currentInput || !startInput || !endInput) return;
+
+            const isCurrent = currentInput.value === 'Yes';
+            if (isCurrent) {
+                endInput.value = '';
+                endInput.disabled = true;
+                setRequiredByKey(`employment_end_${record}`, false);
+            } else {
+                endInput.disabled = false;
+                setRequiredByKey(`employment_end_${record}`, currentInput.value === 'No');
+            }
+
+            endInput.min = startInput.value || '';
+            endInput.setCustomValidity('');
+            if (!endInput.disabled && startInput.value && endInput.value && endInput.value < startInput.value) {
+                endInput.setCustomValidity('Employment end date cannot be earlier than the start date.');
+            }
+        }
+
+        function syncEmploymentRecords() {
+            const declaredYes = inputForKey('work_experience_declaration')?.value === 'Yes';
+            let count = Number(employmentCountInput?.value || 0);
+
+            if (declaredYes) {
+                count = Math.max(1, Math.min(MAX_EMPLOYMENT_RECORDS, count || rememberedEmploymentCount || 1));
+                rememberedEmploymentCount = count;
+                if (employmentCountInput) employmentCountInput.value = String(count);
+            } else {
+                if (count > 0) rememberedEmploymentCount = Math.max(1, Math.min(MAX_EMPLOYMENT_RECORDS, count));
+                count = 0;
+                if (employmentCountInput) employmentCountInput.value = '0';
+            }
+
+            for (let record = 1; record <= MAX_EMPLOYMENT_RECORDS; record++) {
+                syncEmploymentRecord(record, declaredYes && record <= count);
+            }
+
+            const actions = document.getElementById('employmentRecordActions');
+            const addButton = document.getElementById('addEmploymentRecord');
+            if (actions) actions.classList.toggle('d-none', !declaredYes);
+            if (addButton) addButton.disabled = !declaredYes || count >= MAX_EMPLOYMENT_RECORDS;
+
+            form.querySelectorAll('[data-remove-employment-record]').forEach(button => {
+                const record = Number(button.dataset.removeEmploymentRecord || 0);
+                button.classList.toggle('d-none', !declaredYes || record > count || record <= 1);
+            });
+        }
+
+        function addEmploymentRecord() {
+            if (inputForKey('work_experience_declaration')?.value !== 'Yes') return;
+            const count = Math.max(1, Number(employmentCountInput?.value || 1));
+            if (count >= MAX_EMPLOYMENT_RECORDS) return;
+            const next = count + 1;
+            if (employmentCountInput) employmentCountInput.value = String(next);
+            rememberedEmploymentCount = next;
+            syncEmploymentRecords();
+            wrapperForKey(`company_${next}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function removeEmploymentRecord(record) {
+            let count = Math.max(1, Number(employmentCountInput?.value || 1));
+            if (record <= 1 || record > count) return;
+
+            for (let index = record; index < count; index++) {
+                const currentKeys = employmentKeys(index);
+                const nextKeys = employmentKeys(index + 1);
+                currentKeys.forEach((key, offset) => {
+                    const currentInput = inputForKey(key);
+                    const nextInput = inputForKey(nextKeys[offset]);
+                    if (currentInput && nextInput) currentInput.value = nextInput.value;
+                });
+            }
+            clearEmploymentRecord(count);
+            count--;
+            if (employmentCountInput) employmentCountInput.value = String(count);
+            rememberedEmploymentCount = count;
+            syncEmploymentRecords();
+        }
+
+        function syncStructuredDependencies() {
+            syncReferralField();
+            syncNoticeRequirement();
+            syncAgeFromBirthdate();
+            syncEmploymentRecords();
+        }
 
         function validationErrorKey(field) {
             const name = field?.getAttribute('name') || '';
@@ -950,6 +1293,7 @@
         }
 
         function validateAllFields() {
+            syncStructuredDependencies();
             clearValidationState();
             const issues = [];
 
@@ -1085,6 +1429,23 @@
         prevBtn.addEventListener('click', () => showStep(current - 1));
         navItems.forEach((item, index) => item.addEventListener('click', () => showStep(index)));
 
+        const today = todayIso();
+        const boundedDateKeys = ['birthdate'];
+        for (let record = 1; record <= MAX_EMPLOYMENT_RECORDS; record++) {
+            boundedDateKeys.push(`employment_dates_${record}`, `employment_end_${record}`);
+        }
+        boundedDateKeys.forEach(key => {
+            const input = inputForKey(key);
+            if (input) input.max = today;
+        });
+
+        document.getElementById('addEmploymentRecord')?.addEventListener('click', addEmploymentRecord);
+        form.querySelectorAll('[data-remove-employment-record]').forEach(button => {
+            button.addEventListener('click', () => removeEmploymentRecord(Number(button.dataset.removeEmploymentRecord || 0)));
+        });
+
+        syncStructuredDependencies();
+
         document.querySelectorAll('.file-input').forEach(input => {
             input.addEventListener('change', function () {
             const fileNameDisplay = this
@@ -1104,11 +1465,13 @@
 
         field.addEventListener(eventName, function () {
             clearFieldValidation(this);
+            syncStructuredDependencies();
         });
 
         if (eventName !== 'change') {
             field.addEventListener('change', function () {
                 clearFieldValidation(this);
+                syncStructuredDependencies();
             });
         }
     });

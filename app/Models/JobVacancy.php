@@ -79,6 +79,33 @@ class JobVacancy extends Model
         return $this->belongsTo(Position::class);
     }
 
+    public function assessmentCriteria()
+    {
+        return $this->hasMany(AssessmentCriterion::class)->orderBy('sort_order');
+    }
+
+    public function assessmentProfile()
+    {
+        return $this->hasOne(AssessmentProfile::class, 'job_vacancy_id');
+    }
+
+    public function formTemplates()
+    {
+        return $this->belongsToMany(FormTemplate::class, 'job_vacancy_form_template')
+            ->withPivot(['sort_order','is_required'])
+            ->withTimestamps()
+            ->orderBy('job_vacancy_form_template.sort_order');
+    }
+
+
+    public function qualificationsList()
+    {
+        return $this->hasMany(JobVacancyQualification::class, 'job_vacancy_id')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public function applications()
     {
         return $this->hasMany(Application::class);

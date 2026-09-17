@@ -80,10 +80,92 @@ document.addEventListener('DOMContentLoaded', function () {
     const notificationFooter = document.getElementById('notificationFooter');
     const toggleAllButton = document.getElementById('toggleAllNotifications');
     const pollIntervalMs = 3000;
+    const desktopNotificationIcon = @json(asset('assets/images/logo/rs8-logo.png'));
+    const desktopNotificationStorageKey = 'rs8-recruitment-desktop-notified-v1';
     let lastUnreadCount = 0;
     let requestInProgress = false;
     let pollTimer = null;
     let expanded = false;
+    let notificationBaselineReady = false;
+
+    function getDesktopNotifiedIds() {
+        try {
+            const stored = JSON.parse(localStorage.getItem(desktopNotificationStorageKey) || '[]');
+            return new Set(Array.isArray(stored) ? stored.map(String) : []);
+        } catch (error) {
+            return new Set();
+        }
+    }
+
+    function saveDesktopNotifiedIds(ids) {
+        try {
+            localStorage.setItem(desktopNotificationStorageKey, JSON.stringify(Array.from(ids).slice(-150)));
+        } catch (error) {
+            // Local storage can be unavailable in strict/private browser modes.
+        }
+    }
+
+    function desktopNotificationsSupported() {
+        return 'Notification' in window;
+    }
+
+    async function requestDesktopNotificationPermission() {
+        if (!desktopNotificationsSupported()) return false;
+        if (Notification.permission === 'granted') return true;
+        if (Notification.permission === 'denied') return false;
+
+        try {
+            return (await Notification.requestPermission()) === 'granted';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function showDesktopNotification(item) {
+        if (!desktopNotificationsSupported() || Notification.permission !== 'granted') return;
+
+        try {
+            const notice = new Notification(item.title || 'RS8 Recruitment Update', {
+                body: item.message || 'You have a new recruitment notification.',
+                icon: desktopNotificationIcon,
+                badge: desktopNotificationIcon,
+                tag: `rs8-recruitment-${item.id}`,
+                renotify: true
+            });
+
+            notice.onclick = function () {
+                window.focus();
+                if (item.open_url) window.location.href = item.open_url;
+                notice.close();
+            };
+        } catch (error) {
+            // Keep the in-app bell working even when the OS blocks native toasts.
+        }
+    }
+
+    function processDesktopNotifications(items) {
+        const unreadItems = (items || []).filter(item => !item.is_read && item.id);
+        const notifiedIds = getDesktopNotifiedIds();
+
+        // On the first poll, remember current unread notifications without replaying
+        // old alerts. Only notifications that arrive after the page is running will pop.
+        if (!notificationBaselineReady) {
+            unreadItems.forEach(item => notifiedIds.add(String(item.id)));
+            saveDesktopNotifiedIds(notifiedIds);
+            notificationBaselineReady = true;
+            return;
+        }
+
+        unreadItems.slice().reverse().forEach(item => {
+            const id = String(item.id);
+            if (notifiedIds.has(id)) return;
+
+            // Save before showing to reduce duplicate native notifications across tabs.
+            notifiedIds.add(id);
+            saveDesktopNotifiedIds(notifiedIds);
+            showDesktopNotification(item);
+        });
+    }
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>'"]/g, character => ({
@@ -140,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function loadNotifications() {
-        if (requestInProgress || document.hidden) return;
+        if (requestInProgress) return;
         requestInProgress = true;
 
         try {
@@ -155,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             updateBadge(data.unread_count);
             renderNotifications(data.notifications || [], data.total_count || 0);
+            processDesktopNotifications(data.notifications || []);
         } catch (error) {
             list.innerHTML = '<div class="notification-empty text-danger"><i class="bi bi-exclamation-circle"></i><strong>Unable to load notifications</strong><small>We will try again automatically.</small></div>';
         } finally {
@@ -223,6 +306,17 @@ document.addEventListener('DOMContentLoaded', function () {
     toggleAllButton.addEventListener('click', async function () {
         expanded = !expanded;
         await loadNotifications();
+    });
+
+    bell.addEventListener('click', async function () {
+        const permissionWasDefault = desktopNotificationsSupported() && Notification.permission === 'default';
+        const granted = await requestDesktopNotificationPermission();
+
+        if (permissionWasDefault && granted && typeof showToast === 'function') {
+            showToast('success', 'Desktop notifications are now enabled.');
+        } else if (desktopNotificationsSupported() && Notification.permission === 'denied' && typeof showToast === 'function') {
+            showToast('warning', 'Chrome notifications are blocked for this site. Enable Notifications in Site settings.');
+        }
     });
 
     bell.addEventListener('show.bs.dropdown', loadNotifications);

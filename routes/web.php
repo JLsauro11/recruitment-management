@@ -5,7 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\HR\DashboardController as HRDashboardController;
 use App\Http\Controllers\Admin\{DepartmentController, PositionController, VacancyController, UserController, ApplicantController, SettingController};
-use App\Http\Controllers\Recruitment\{InterviewController, PipelineController, ReportController, FormTemplateController, NotificationController};
+use App\Http\Controllers\Recruitment\{InterviewController, PipelineController, ReportController, FormTemplateController, NotificationController, AssessmentInsightController};
 use App\Http\Controllers\Applicant\FormController;
 
 Route::middleware('guest')->group(function () {
@@ -64,6 +64,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('forms/reorder', [FormTemplateController::class, 'reorder'])->name('forms.reorder');
     Route::resource('forms', FormTemplateController::class)->parameters(['forms' => 'formTemplate'])->except(['create','edit']);
 
+    Route::get('assessment-insights', [AssessmentInsightController::class, 'index'])->name('assessment-insights.index');
+    Route::post('assessment-insights/recalculate', [AssessmentInsightController::class, 'recalculate'])->name('assessment-insights.recalculate');
+    Route::put('assessment-insights/{vacancy}/criteria', [AssessmentInsightController::class, 'updateCriteria'])->name('assessment-insights.criteria');
+    Route::put('assessment-insights/{vacancy}/templates', [AssessmentInsightController::class, 'updateTemplates'])->name('assessment-insights.templates');
+    Route::put('assessment-insights/{vacancy}/mappings', [AssessmentInsightController::class, 'updateMappings'])->name('assessment-insights.mappings');
+    Route::post('assessment-insights/{vacancy}/save-position-default', [AssessmentInsightController::class, 'savePositionDefault'])->name('assessment-insights.save-position-default');
+    Route::post('assessment-insights/{vacancy}/reset-position-default', [AssessmentInsightController::class, 'resetPositionDefault'])->name('assessment-insights.reset-position-default');
+
     Route::get('hiring-status/data', [PipelineController::class, 'data'])->name('hiring-status.data');
     Route::get('hiring-status', [PipelineController::class, 'index'])->name('hiring-status.index');
     Route::put('hiring-status/{application}', [PipelineController::class, 'update'])->name('hiring-status.update');
@@ -106,6 +114,14 @@ Route::prefix('hr')->name('hr.')->middleware(['auth', 'role:hr'])->group(functio
     Route::get('forms/sections', [FormTemplateController::class, 'sections'])->name('forms.sections');
     Route::post('forms/reorder', [FormTemplateController::class, 'reorder'])->name('forms.reorder');
     Route::resource('forms', FormTemplateController::class)->parameters(['forms' => 'formTemplate'])->except(['create','edit']);
+
+    Route::get('assessment-insights', [AssessmentInsightController::class, 'index'])->name('assessment-insights.index');
+    Route::post('assessment-insights/recalculate', [AssessmentInsightController::class, 'recalculate'])->name('assessment-insights.recalculate');
+    Route::put('assessment-insights/{vacancy}/criteria', [AssessmentInsightController::class, 'updateCriteria'])->name('assessment-insights.criteria');
+    Route::put('assessment-insights/{vacancy}/templates', [AssessmentInsightController::class, 'updateTemplates'])->name('assessment-insights.templates');
+    Route::put('assessment-insights/{vacancy}/mappings', [AssessmentInsightController::class, 'updateMappings'])->name('assessment-insights.mappings');
+    Route::post('assessment-insights/{vacancy}/save-position-default', [AssessmentInsightController::class, 'savePositionDefault'])->name('assessment-insights.save-position-default');
+    Route::post('assessment-insights/{vacancy}/reset-position-default', [AssessmentInsightController::class, 'resetPositionDefault'])->name('assessment-insights.reset-position-default');
 
     Route::get('hiring-status/data', [PipelineController::class, 'data'])->name('hiring-status.data');
     Route::get('hiring-status', [PipelineController::class, 'index'])->name('hiring-status.index');

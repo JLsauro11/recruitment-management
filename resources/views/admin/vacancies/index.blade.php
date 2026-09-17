@@ -271,23 +271,24 @@
                                         class="form-control"
                                 >
 
+                                <div class="form-text" id="closingDateHelp">If an expired vacancy was auto-closed, extending its old deadline to today or a future date will reopen it automatically.</div>
                                 <div class="invalid-feedback closing_date_error"></div>
                             </div>
 
                             <div class="col-12">
-                                <label for="qualifications" class="form-label">
-                                    Qualifications <span class="text-danger">*</span>
-                                </label>
+                                <div class="qualification-builder-shell">
+                                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                                        <div>
+                                            <label class="form-label mb-1">Job Qualifications <span class="text-danger">*</span></label>
+                                            <div class="form-text mt-0">Type each qualification normally. Assessment Insights will automatically detect the requirement type, minimum experience, evidence source, and priority.</div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-3" id="addQualificationRow"><i class="bi bi-plus-lg me-1"></i>Add Qualification</button>
+                                    </div>
+                                    <div id="qualificationRows"></div>
+                                    <div class="small text-muted mt-2"><i class="bi bi-stars me-1"></i><strong>Automatic setup:</strong> no manual assessment configuration is required here. Use only job-related qualifications; demographic attributes are never used for scoring.</div>
+                                </div>
 
-                                <textarea
-                                        name="qualifications"
-                                        id="qualifications"
-                                        class="form-control"
-                                        rows="6"
-                                        placeholder="Enter each qualification on a new line..."
-                                        required
-                                ></textarea>
-
+                                <textarea name="qualifications" id="qualifications" class="form-control d-none" rows="6"></textarea>
                                 <div class="invalid-feedback qualifications_error"></div>
                             </div>
                         </div>
@@ -428,7 +429,7 @@
                                     </div>
                                 </div>
 
-                                <div class="vacancy-copy" id="view_qualifications"></div>
+                                <div class="vacancy-copy" id="view_qualifications"></div><div id="view_qualification_details" class="qualification-view-list mt-3"></div>
                             </div>
                         </div>
 
@@ -2157,6 +2158,16 @@
         }
     }
 
+    .qualification-builder-shell{border:1px solid #e5e9ef;border-radius:16px;padding:16px;background:#fbfcfe}
+    .qualification-builder-row{padding:14px;border:1px solid #e7ebf1;border-radius:14px;background:#fff;margin-bottom:10px;box-shadow:0 5px 16px rgba(15,23,42,.04)}
+    .qualification-builder-row:last-child{margin-bottom:0}
+    .qualification-input-row{display:grid;grid-template-columns:minmax(0,1fr) 42px;gap:10px;align-items:end}
+    .qualification-input-row .q-text{height:42px}
+    .removeQualification{width:42px;height:42px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;align-self:end}
+    .removeQualification i{font-size:15px;line-height:1;margin:0}
+    .qualification-view-list{display:grid;gap:9px}
+    .qualification-view-item{border:1px solid #e7ebf1;border-left:4px solid #ed1c24;border-radius:12px;padding:11px 12px;background:#fff}
+
 </style>
 @endpush
 
@@ -2173,6 +2184,32 @@
         );
 
         let table;
+        let loadedVacancyStatus = null;
+        let loadedClosingDate = null;
+
+        function dateOnlyToday() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function syncReopenStatusPreview() {
+            if (!$('#record_id').val() || loadedVacancyStatus !== 'Closed' || !loadedClosingDate) return;
+
+            const today = dateOnlyToday();
+            const newClosing = $('#closing_date').val();
+            const opening = $('#opening_date').val();
+            const oldWasExpired = loadedClosingDate < today;
+            const deadlineChanged = newClosing !== loadedClosingDate;
+            const inWindow = (!opening || opening <= today) && (!newClosing || newClosing >= today);
+
+            if (oldWasExpired && deadlineChanged && inWindow && $('#status').val() === 'Closed') {
+                $('#status').val('Open');
+                $('#closingDateHelp').html('<i class="bi bi-arrow-repeat me-1"></i>This expired vacancy will be reopened when you save because the closing date is active again.');
+            }
+        }
 
         function clearErrors() {
             $('.invalid-feedback').text('');
@@ -2187,7 +2224,11 @@
             $('#slots').val(1);
             $('#employment_type').val('Full-time');
             $('#status').val('Draft');
+            loadedVacancyStatus = null;
+            loadedClosingDate = null;
+            $('#closingDateHelp').text('If an expired vacancy was auto-closed, extending its old deadline to today or a future date will reopen it automatically.');
             $('#title').val('');
+            renderQualificationRows([]);
             $('#posterPreview').attr('src', '');
             $('#posterPreviewWrap').removeClass('has-image');
             $('#modalTitle').text('Add Job Vacancy');
@@ -2398,6 +2439,67 @@
         });
 
 
+
+        function escapeHtml(value) {
+            return $('<div>').text(value ?? '').html();
+        }
+
+        function qualificationRowTemplate(q = {}) {
+            const text = q.qualification_text ?? '';
+            return `<div class="qualification-builder-row">
+                <div class="qualification-input-row">
+                    <div>
+                        <label class="form-label small mb-1">Qualification / Requirement</label>
+                        <input class="form-control q-text" data-q-name="qualification_text" value="${escapeHtml(text)}" placeholder="e.g. At least 2 years relevant accounting experience" required>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger removeQualification" title="Remove qualification" aria-label="Remove qualification"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>`;
+        }
+
+        function normalizeQualificationNames() {
+            $('#qualificationRows .qualification-builder-row').each(function(index){
+                $(this).find('[data-q-name]').each(function(){
+                    $(this).attr('name', `qualification_items[${index}][${$(this).data('q-name')}]`);
+                });
+            });
+        }
+
+        function renderQualificationRows(items = [], fallbackText = '') {
+            let rows = Array.isArray(items) ? items : [];
+            if (!rows.length && fallbackText) {
+                rows = fallbackText.split(/\r?\n|;/).map(x=>x.replace(/^[\-•*\s]+/,'').trim()).filter(Boolean).map(text=>({qualification_text:text}));
+            }
+            if (!rows.length) rows = [{qualification_text:''}];
+            $('#qualificationRows').html(rows.map(qualificationRowTemplate).join(''));
+            normalizeQualificationNames();
+            syncQualificationText();
+        }
+
+        function syncQualificationText() {
+            normalizeQualificationNames();
+            const lines = $('#qualificationRows .q-text').map(function(){return String($(this).val()||'').trim()}).get().filter(Boolean);
+            $('#qualifications').val(lines.join('\n'));
+        }
+
+        $('#addQualificationRow').on('click', function(){
+            $('#qualificationRows').append(qualificationRowTemplate({qualification_text:''}));
+            normalizeQualificationNames();
+            const $last = $('#qualificationRows .qualification-builder-row').last();
+            $last.find('.q-text').trigger('focus');
+        });
+        $('#qualificationRows').on('click','.removeQualification',function(){
+            const rows=$('#qualificationRows .qualification-builder-row');
+            if(rows.length<=1){Swal.fire('At least one qualification is required','','warning');return;}
+            $(this).closest('.qualification-builder-row').remove();
+            normalizeQualificationNames();
+            syncQualificationText();
+        });
+        $('#qualificationRows').on('input','.q-text',function(){
+            syncQualificationText();
+        });
+        $('#qualificationRows').on('change','[data-q-name]',syncQualificationText);
+
 $('#refreshBtn').on('click', function () {
             const $button = $(this);
             const originalHtml = $button.html();
@@ -2458,9 +2560,14 @@ $('#refreshBtn').on('click', function () {
                     }
 
                     $('#view_salary').text(salaryText);
-                    $('#view_qualifications').text(
-                        response.qualifications || 'No qualifications provided.'
-                    );
+                    const qItems = response.qualification_items || [];
+                    $('#view_qualifications').text(qItems.length ? '' : (response.qualifications || 'No qualifications provided.'));
+                    $('#view_qualification_details').html(qItems.map(function(q){
+                        const level=(q.requirement_level||'required').replaceAll('_',' ');
+                        const type=(q.qualification_type||'auto').replaceAll('_',' ');
+                        const min=q.minimum_value!==null && q.minimum_value!=='' ? ` · Minimum ${q.minimum_value} ${q.minimum_unit||''}` : '';
+                        return `<div class="qualification-view-item"><div class="fw-bold text-dark">${escapeHtml(q.qualification_text||'')}</div><div class="small text-muted mt-1"><span class="badge bg-light text-dark border">${escapeHtml(level)}</span> <span class="badge bg-light text-dark border">${escapeHtml(type)}</span>${escapeHtml(min)}</div></div>`;
+                    }).join(''));
 
                     viewModal.show();
                 },
@@ -2500,7 +2607,11 @@ $('#refreshBtn').on('click', function () {
                     $('#opening_date').val(response.opening_date_raw);
                     $('#closing_date').val(response.closing_date_raw);
                     $('#qualifications').val(response.qualifications);
+                    renderQualificationRows(response.qualification_items || [], response.qualifications || '');
                     $('#status').val(response.status);
+                    loadedVacancyStatus = response.status;
+                    loadedClosingDate = response.closing_date_raw || null;
+                    $('#closingDateHelp').text('If an expired vacancy was auto-closed, extending its old deadline to today or a future date will reopen it automatically.');
                     $('#poster').val('');
 
                     if (response.poster_url) {
@@ -2528,8 +2639,18 @@ $('#refreshBtn').on('click', function () {
             });
         });
 
+        $('#closing_date, #opening_date').on('change', syncReopenStatusPreview);
+
+        $('#status').on('change', function () {
+            if ($(this).val() !== 'Open') {
+                $('#closingDateHelp').text('If an expired vacancy was auto-closed, extending its old deadline to today or a future date will reopen it automatically.');
+            }
+        });
+
         $('#dataForm').submit(function (e) {
             e.preventDefault();
+
+            syncQualificationText();
 
             clearErrors();
 

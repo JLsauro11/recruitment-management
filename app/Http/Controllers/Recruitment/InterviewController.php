@@ -249,7 +249,7 @@ class InterviewController extends Controller
 
     private function applyApplicationStage(Application $application, string $status, string $remarks): void
     {
-        if ($application->status === $status) {
+        if (in_array($application->status, ['Hired', 'Rejected', 'Withdrawn'], true) || $application->status === $status) {
             return;
         }
 

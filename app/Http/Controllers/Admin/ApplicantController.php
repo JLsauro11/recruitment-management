@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\JobVacancy;
+use App\Services\AssessmentInsightService;
 use App\Services\RecruitmentNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -233,6 +234,19 @@ class ApplicantController extends Controller
 
         abort_if($answers->isEmpty(), 404, 'No submitted applicant information was found.');
 
+        $posted = $request->input('answers', []);
+        if (is_array($posted)) {
+            $existing = [];
+            foreach ($answers as $answer) {
+                if ($answer->field->field_type === 'file') {
+                    continue;
+                }
+                $existing[$answer->field->id] = $answer->field->field_type === 'checkbox'
+                    ? [] : $answer->value;
+            }
+            $request->merge(['answers' => array_replace($existing, $posted)]);
+        }
+
         $emailAnswer = $answers->first(
             fn ($answer) => $answer->field?->field_key === 'email_address'
         );
@@ -303,8 +317,12 @@ class ApplicantController extends Controller
                     break;
 
                 case 'date':
-                    $fieldRules[] = 'date';
-                    $fieldRules[] = 'before_or_equal:today';
+                    $fieldRules[] = 'date_format:Y-m-d';
+                    if ($field->field_key === 'birthdate'
+                        || str_starts_with($field->field_key, 'employment_dates_')
+                        || str_starts_with($field->field_key, 'employment_end_')) {
+                        $fieldRules[] = 'before_or_equal:today';
+                    }
                     break;
 
                 case 'select':
@@ -347,7 +365,7 @@ class ApplicantController extends Controller
             'answers.*.email' => 'Please enter a valid email address.',
             'answers.*.unique' => 'This email address is already assigned to another applicant record.',
             'answers.*.numeric' => 'This field must contain a valid number.',
-            'answers.*.date' => 'Please enter a valid date.',
+            'answers.*.date_format' => 'Please enter a valid date.',
             'answers.*.before_or_equal' => 'The selected date cannot be in the future.',
             'answers.*.file' => 'The uploaded value must be a valid file.',
             'answers.*.mimes' => 'Only PDF, DOC, DOCX, JPG, JPEG, and PNG files are allowed.',
@@ -357,6 +375,10 @@ class ApplicantController extends Controller
             'answers.*.min' => 'Please select at least one option.',
             'answers.*.*.in' => 'One or more selected options are invalid.',
         ], $attributes);
+
+        app(\App\Services\ApplicationEvidenceValidator::class)->validate(
+            $request, $answers->pluck('field')->unique('id')->values(), false
+        );
 
         $targetVacancyId = (int) $validated['job_vacancy_id'];
 
@@ -481,8 +503,23 @@ class ApplicantController extends Controller
             $this->deleteStoredPublicFile($path);
         }
 
+        // Any HR edit to role evidence or vacancy assignment immediately refreshes
+        // the applicant's assessment. A scoring issue should not roll back the edit.
+        $assessmentPending = false;
+        try {
+            app(AssessmentInsightService::class)->assess($application->fresh());
+        } catch (Throwable $exception) {
+            $assessmentPending = true;
+            // Never leave an old score attached to newly edited evidence.
+            $application->assessmentResult()->delete();
+            report($exception);
+        }
+
         return response()->json([
-            'message' => 'Applicant information updated successfully.',
+            'assessment_pending' => $assessmentPending,
+            'message' => $assessmentPending
+                ? 'Applicant information saved. Assessment refresh is pending; open Assessment Insights to retry.'
+                : 'Applicant information updated successfully.',
         ]);
     }
 

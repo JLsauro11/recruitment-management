@@ -9,6 +9,7 @@ use App\Models\FormAnswer;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\JobVacancy;
+use App\Services\AssessmentInsightService;
 use App\Services\RecruitmentNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -65,13 +66,7 @@ class FormController extends Controller
                 ->with('career_error', 'Please select an open position before starting your application.');
         }
 
-        $templates = FormTemplate::with([
-            'fields' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
-        ])
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $templates = $this->templatesForVacancy($vacancy);
 
         $existingAnswers = collect();
 
@@ -84,7 +79,8 @@ class FormController extends Controller
 
     public function validateStep(Request $request): JsonResponse
     {
-        if (!$this->selectedVacancyFromSession($request)) {
+        $vacancy = $this->selectedVacancyFromSession($request);
+        if (!$vacancy) {
             throw ValidationException::withMessages([
                 'form' => 'Your selected job vacancy is missing or no longer available. Please return to the careers page and select an open position.',
             ]);
@@ -117,11 +113,16 @@ class FormController extends Controller
             ]);
         }
 
-        $fields = $template->fields()
-            ->where('section', $request->input('section'))
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $fixedTemplates = $this->templatesForVacancy($vacancy);
+        $fixedTemplateIds = $fixedTemplates->pluck('id');
+        if (!$fixedTemplateIds->contains($template->id)) {
+            throw ValidationException::withMessages([
+                'template_id' => 'This form is not part of the active employment application workflow.',
+            ]);
+        }
+
+        $fields = $fixedTemplates->firstWhere('id', $template->id)->fields
+            ->where('section', $request->input('section'))->values();
 
         if ($fields->isEmpty()) {
             throw ValidationException::withMessages([
@@ -134,6 +135,7 @@ class FormController extends Controller
             $this->validationMessages(),
             $this->validationAttributes($fields)
         );
+        $this->validateCrossFieldRules($request, $fields);
 
         return response()->json(['valid' => true]);
     }
@@ -147,13 +149,9 @@ class FormController extends Controller
                 ->with('career_error', 'Please select an open position before submitting an application.');
         }
 
-        $templates = FormTemplate::with([
-            'fields' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
-        ])
-            ->where('is_active', true)
-        ->orderBy('sort_order')
-        ->orderBy('id')
-        ->get();
+        // Use the fixed application + questionnaire pair that Assessment Insights expects.
+        // HR/Admin no longer needs to assign a form set per vacancy.
+        $templates = $this->templatesForVacancy($vacancy);
 
         if ($templates->isEmpty()) {
             throw ValidationException::withMessages([
@@ -172,6 +170,7 @@ class FormController extends Controller
 
         $rules = [
             'answers' => ['required', 'array'],
+            'employment_record_count' => ['nullable', 'integer', 'min:0', 'max:5'],
         ];
 
         $rules = array_merge($rules, $this->buildFieldRules($allFields));
@@ -181,10 +180,22 @@ class FormController extends Controller
             $this->validationMessages(),
             $this->validationAttributes($allFields)
         );
+        $this->validateCrossFieldRules($request, $allFields);
 
         $answerByKey = [];
         foreach ($allFields as $field) {
             $answerByKey[$field->field_key] = $request->input('answers.' . $field->id);
+        }
+
+        // Age is derived from birthdate and never trusted as an independent answer.
+        // It remains administrative only and is excluded from Assessment Insights.
+        $birthdateValue = trim((string) ($answerByKey['birthdate'] ?? ''));
+        if ($birthdateValue !== '') {
+            try {
+                $answerByKey['age'] = \Illuminate\Support\Carbon::parse($birthdateValue)->age;
+            } catch (\Throwable $exception) {
+                $answerByKey['age'] = null;
+            }
         }
 
         $email = strtolower(trim((string) ($answerByKey['email_address'] ?? '')));
@@ -259,7 +270,9 @@ class FormController extends Controller
 
                 foreach ($template->fields as $field) {
                     $inputKey = 'answers.' . $field->id;
-                    $value = $request->input($inputKey);
+                    $value = array_key_exists($field->field_key, $answerByKey)
+                        ? $answerByKey[$field->field_key]
+                        : $request->input($inputKey);
 
                     if ($field->field_type === 'file' && $request->hasFile($inputKey)) {
                         $value = $request->file($inputKey)
@@ -286,6 +299,14 @@ class FormController extends Controller
         });
 
         $application->loadMissing(['applicant', 'vacancy']);
+
+        // Score immediately so HR sees a current ranking without visiting a setup page.
+        // Assessment failure must never block a valid applicant submission.
+        try {
+            app(AssessmentInsightService::class)->assess($application);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         app(RecruitmentNotificationService::class)->sendToRecruitmentTeam([
             'title' => 'New Applicant',
@@ -364,10 +385,21 @@ private function buildFieldRules(Collection $fields): array
                     break;
                 case 'number':
                     $fieldRules[] = 'numeric';
+                    if ($field->field_key === 'age') {
+                        $fieldRules[] = 'integer';
+                        $fieldRules[] = 'min:0';
+                        $fieldRules[] = 'max:120';
+                    }
                     break;
                 case 'date':
-                    $fieldRules[] = 'date';
-                    $fieldRules[] = 'before_or_equal:today';
+                    $fieldRules[] = 'date_format:Y-m-d';
+                    if (
+                        $field->field_key === 'birthdate'
+                        || str_starts_with($field->field_key, 'employment_dates_')
+                        || str_starts_with($field->field_key, 'employment_end_')
+                    ) {
+                        $fieldRules[] = 'before_or_equal:today';
+                    }
                     break;
                 case 'file':
                     $fieldRules[] = 'file';
@@ -398,6 +430,9 @@ private function buildFieldRules(Collection $fields): array
                 default:
                     $fieldRules[] = 'string';
                     $fieldRules[] = 'max:5000';
+                    if ($field->field_key === 'cellphone_number' || str_starts_with($field->field_key, 'reference_phone_')) {
+                        $fieldRules[] = 'regex:/^\+?[0-9][0-9\s\-()]{6,24}$/';
+                    }
                     break;
             }
 
@@ -405,6 +440,11 @@ private function buildFieldRules(Collection $fields): array
         }
 
     return $rules;
+}
+
+private function validateCrossFieldRules(Request $request, Collection $fields): void
+{
+    app(\App\Services\ApplicationEvidenceValidator::class)->validate($request, $fields);
 }
 
 private function validationMessages(): array
@@ -415,8 +455,11 @@ private function validationMessages(): array
         'answers.*.required' => 'This field is required.',
         'answers.*.email' => 'Please enter a valid email address.',
         'answers.*.numeric' => 'This field must contain a valid number.',
-        'answers.*.date' => 'Please enter a valid date.',
+        'answers.*.date_format' => 'Please enter a valid date.',
         'answers.*.before_or_equal' => 'The selected date cannot be in the future.',
+        'answers.*.after_or_equal' => 'The selected date cannot be earlier than today.',
+        'answers.*.integer' => 'Please enter a whole number.',
+        'answers.*.regex' => 'Please enter a valid phone number.',
         'answers.*.file' => 'The uploaded value must be a valid file.',
         'answers.*.mimes' => 'Only PDF, DOC, DOCX, JPG, JPEG, and PNG files are allowed.',
         'answers.*.max' => 'The submitted value exceeds the allowed limit.',
@@ -449,4 +492,9 @@ private function nextReferenceNumber(): string
 
     return $reference;
 }
+    private function templatesForVacancy(JobVacancy $vacancy): Collection
+    {
+        return app(AssessmentInsightService::class)->templatesForVacancy($vacancy);
+    }
+
 }

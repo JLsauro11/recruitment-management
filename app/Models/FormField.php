@@ -24,4 +24,9 @@ class FormField extends Model
     {
         return $this->hasMany(FormAnswer::class);
     }
+
+    public function assessmentMappings(): HasMany
+    {
+        return $this->hasMany(AssessmentFieldMapping::class);
+    }
 }

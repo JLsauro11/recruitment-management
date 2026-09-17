@@ -2,7 +2,7 @@
 
 @section('title', 'Employment Forms')
 @section('page-title', 'Employment Forms')
-@section('page-subtitle', 'Manage application and questionnaire templates')
+@section('page-subtitle', 'System-managed employment forms and optional custom templates')
 
 @section('content')
 @php $prefix = request()->routeIs('hr.*') ? 'hr' : 'admin'; @endphp
@@ -12,9 +12,9 @@
         <div class="template-manager-heading">
             <div class="template-manager-icon"><i class="bi bi-ui-checks-grid"></i></div>
             <div>
-                <span class="template-manager-kicker">FORM BUILDER</span>
+                <span class="template-manager-kicker">EMPLOYMENT FORMS</span>
                 <h4>Employment Form Templates</h4>
-                <p>Create, arrange, and maintain application forms without editing code.</p>
+                <p>The public Application for Employment and Employment Questionnaire are system-managed so Assessment Insights always receives the evidence it expects.</p>
             </div>
         </div>
 
@@ -34,7 +34,7 @@
         <div class="template-summary-row">
             <div>
                 <strong id="templateCount">0 Templates</strong>
-                <span>Drag templates to reorder them. Inside the builder, drag sections and fields to control their order.</span>
+                <span>System-managed forms are fixed and used automatically. Custom templates may still be created for other workflows, but they do not replace the assessment form pair.</span>
             </div>
             <button type="button" class="btn btn-light" id="refreshBtn">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -256,6 +256,15 @@ $(document).ready(function () {
                     const icon = row.type === 'application' ? 'bi-file-earmark-person-fill' : 'bi-chat-square-text-fill';
                     const statusClass = row.is_active ? 'active' : 'inactive';
                     const statusLabel = row.is_active ? 'Active' : 'Inactive';
+                    const managedBadge = row.is_system_managed
+                        ? '<span class="template-pill active"><i class="bi bi-shield-lock-fill"></i> System Managed</span>'
+                        : '';
+                    const editButton = row.is_system_managed
+                        ? '<button type="button" class="btn btn-light" disabled title="Managed automatically for Assessment Insights"><i class="bi bi-lock-fill"></i></button>'
+                        : `<button type="button" class="btn btn-light editBtn" data-id="${row.id}" title="Edit"><i class="bi bi-pencil-square"></i></button>`;
+                    const deleteButton = row.is_system_managed
+                        ? '<button type="button" class="btn btn-light" disabled title="Required by the employment application flow"><i class="bi bi-shield-lock"></i></button>'
+                        : `<button type="button" class="btn btn-danger deleteBtn" data-id="${row.id}" title="Delete"><i class="bi bi-trash"></i></button>`;
 
                     $('#templateGrid').append(`
                         <article class="template-card" data-id="${row.id}" data-order="${row.sort_order}">
@@ -269,6 +278,7 @@ $(document).ready(function () {
                                         <div class="template-card-badges">
                                             <span class="template-pill">${typeLabel}</span>
                                             <span class="template-pill ${statusClass}">${statusLabel}</span>
+                                            ${managedBadge}
                                             <span class="template-order-pill"><i class="bi bi-list-ol"></i> Order ${row.sort_order}</span>
                                         </div>
                                     </div>
@@ -279,8 +289,8 @@ $(document).ready(function () {
                                 <div class="template-stat"><strong>${row.submissions_count}</strong><span>Submissions</span></div>
                             </div>
                             <div class="template-card-actions">
-                                <button type="button" class="btn btn-light editBtn" data-id="${row.id}" title="Edit"><i class="bi bi-pencil-square"></i></button>
-                                <button type="button" class="btn btn-danger deleteBtn" data-id="${row.id}" title="Delete"><i class="bi bi-trash"></i></button>
+                                ${editButton}
+                                ${deleteButton}
                             </div>
                         </article>
                     `);

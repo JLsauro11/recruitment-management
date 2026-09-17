@@ -32,6 +32,7 @@ class FormTemplateController extends Controller
                 'submissions_count' => $template->submissions_count,
                 'is_active' => $template->is_active,
                 'sort_order' => (int) $template->sort_order,
+                'is_system_managed' => $this->isSystemManagedTemplate($template),
             ]);
 
         return response()->json(['data' => $templates]);
@@ -68,6 +69,12 @@ class FormTemplateController extends Controller
     {
         $data = $this->validated($request);
 
+        if ($this->isReservedTemplateIdentity((string) $data['name'], (string) $data['type'])) {
+            return response()->json([
+                'message' => 'That template name is reserved for the system-managed Assessment Insights form pair.',
+            ], 422);
+        }
+
         DB::transaction(function () use ($data) {
             $this->normalizeTemplateOrders();
 
@@ -93,7 +100,19 @@ class FormTemplateController extends Controller
 
     public function update(Request $request, FormTemplate $formTemplate): JsonResponse
     {
+        if ($this->isSystemManagedTemplate($formTemplate)) {
+            return response()->json([
+                'message' => 'This is a system-managed employment form used by Assessment Insights. Its structure is fixed so HR does not need to configure assessment mappings manually.',
+            ], 422);
+        }
+
         $data = $this->validated($request, $formTemplate);
+
+        if ($this->isReservedTemplateIdentity((string) $data['name'], (string) $data['type'])) {
+            return response()->json([
+                'message' => 'That template name is reserved for the system-managed Assessment Insights form pair.',
+            ], 422);
+        }
 
         DB::transaction(function () use ($data, $formTemplate) {
             $this->normalizeTemplateOrders();
@@ -163,6 +182,12 @@ class FormTemplateController extends Controller
 
     public function destroy(FormTemplate $formTemplate): JsonResponse
     {
+        if ($this->isSystemManagedTemplate($formTemplate)) {
+            return response()->json([
+                'message' => 'This fixed employment form is required by the public application flow and Assessment Insights and cannot be deleted.',
+            ], 422);
+        }
+
         if ($formTemplate->submissions()->exists()) {
             return response()->json([
                 'message' => 'This template already has submissions. Deactivate it instead of deleting it.'
@@ -171,6 +196,18 @@ class FormTemplateController extends Controller
 
         $formTemplate->delete();
         return response()->json(['message' => 'Form template deleted successfully.']);
+    }
+
+
+    private function isSystemManagedTemplate(FormTemplate $template): bool
+    {
+        return $this->isReservedTemplateIdentity((string) $template->name, (string) $template->type);
+    }
+
+    private function isReservedTemplateIdentity(string $name, string $type): bool
+    {
+        return ($type === 'application' && $name === 'Application for Employment')
+            || ($type === 'questionnaire' && $name === 'Employment Questionnaire');
     }
 
     private function validated(Request $request, ?FormTemplate $template = null): array

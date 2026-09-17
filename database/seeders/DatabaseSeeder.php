@@ -14,5 +14,14 @@ class DatabaseSeeder extends Seeder
             PositionSeeder::class,
             FormTemplateSeeder::class,
         ]);
+
+        // Demo applicants are intentionally limited to local/testing environments
+        // so production databases are never populated with sample recruitment data.
+        if (app()->environment(['local', 'testing'])) {
+            $this->call([
+                ItSpecialistSampleApplicantsSeeder::class,
+                AssessmentValidationDemoSeeder::class,
+            ]);
+        }
     }
 }

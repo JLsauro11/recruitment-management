@@ -19,4 +19,9 @@ class FormTemplate extends Model
     {
         return $this->hasMany(FormSubmission::class);
     }
+
+    public function vacancies()
+    {
+        return $this->belongsToMany(JobVacancy::class, 'job_vacancy_form_template')->withPivot(['sort_order','is_required'])->withTimestamps();
+    }
 }

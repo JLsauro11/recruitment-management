@@ -19,7 +19,7 @@ class ReportController extends Controller
             'hired' => Application::where('status', 'Hired')->count(),
             'rejected' => Application::where('status', 'Rejected')->count(),
             'open_vacancies' => JobVacancy::openForApplications()->count(),
-            'scheduled_interviews' => Interview::where('status', 'Scheduled')->count(),
+            'scheduled_interviews' => Interview::whereIn('status', ['Scheduled', 'Rescheduled'])->count(),
         ];
         $byStatus = Application::selectRaw('status, COUNT(*) total')->groupBy('status')->orderByDesc('total')->get();
         $byPosition = Application::join('job_vacancies', 'applications.job_vacancy_id', '=', 'job_vacancies.id')
@@ -32,9 +32,10 @@ class ReportController extends Controller
         $rows = Application::with(['applicant', 'vacancy.position.department'])->latest('applied_at')->get();
         return Response::streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Reference','Applicant','Email','Position','Department','Status','Applied']);
             foreach ($rows as $a) {
-                fputcsv($out, [
+                fputcsv($out, array_map([self::class, 'csvCell'], [
                     $a->reference_no,
                     $a->applicant?->full_name,
                     $a->applicant?->email,
@@ -42,9 +43,14 @@ class ReportController extends Controller
                     $a->vacancy?->position?->department?->name,
                     $a->status,
                     $a->applied_at?->format('Y-m-d H:i:s'),
-                ]);
+                ]));
             }
             fclose($out);
         }, 'recruitment-report-' . now()->format('Ymd-His') . '.csv', ['Content-Type' => 'text/csv']);
+    }
+    public static function csvCell($value): string
+    {
+        $value = (string) ($value ?? '');
+        return preg_match('/^[\s\x00-\x1F]*[=+@-]/u', $value) ? "'" . $value : $value;
     }
 }

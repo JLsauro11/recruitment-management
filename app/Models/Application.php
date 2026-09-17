@@ -16,6 +16,7 @@ class Application extends Model
 
     protected $casts = ['applied_at' => 'datetime'];
 
+    public function assessmentResult(){ return $this->hasOne(AssessmentResult::class); }
     public function applicant(){ return $this->belongsTo(Applicant::class); }
     public function vacancy(){ return $this->belongsTo(JobVacancy::class, 'job_vacancy_id'); }
     public function interviews(){ return $this->hasMany(Interview::class); }

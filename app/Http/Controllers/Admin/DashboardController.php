@@ -17,7 +17,7 @@ class DashboardController extends Controller
             'total_applicants' => Applicant::count(),
             'new_applicants' => Application::where('status', 'New Applicant')->count(),
             'for_screening' => Application::where('status', 'For Screening')->count(),
-            'scheduled_interviews' => Interview::where('status', 'Scheduled')->count(),
+            'scheduled_interviews' => Interview::whereIn('status', ['Scheduled', 'Rescheduled'])->count(),
             'for_questionnaire' => Application::where('status', 'For Questionnaire Review')->count(),
             'hired_applicants' => Application::where('status', 'Hired')->count(),
             'rejected_applicants' => Application::where('status', 'Rejected')->count(),
@@ -33,7 +33,7 @@ class DashboardController extends Controller
             ]);
 
         $upcomingInterviews = Interview::with('application.applicant', 'application.vacancy')
-            ->where('status', 'Scheduled')->where('scheduled_at', '>=', now())
+            ->whereIn('status', ['Scheduled', 'Rescheduled'])->where('scheduled_at', '>=', now())
             ->orderBy('scheduled_at')->take(5)->get()->map(fn ($interview) => [
                 'name' => $interview->application->applicant->full_name,
                 'position' => $interview->application->vacancy->title,
@@ -41,9 +41,9 @@ class DashboardController extends Controller
                 'time' => $interview->scheduled_at->format('g:i A'),
             ]);
 
-        $trendLabels = collect(range(5, 0))->map(fn ($monthsAgo) => now()->subMonths($monthsAgo)->format('M'));
+        $trendLabels = collect(range(5, 0))->map(fn ($monthsAgo) => now()->startOfMonth()->subMonths($monthsAgo)->format('M'));
         $trendValues = collect(range(5, 0))->map(function ($monthsAgo) {
-            $date = now()->subMonths($monthsAgo);
+            $date = now()->startOfMonth()->subMonths($monthsAgo);
             return Application::whereYear('applied_at', $date->year)->whereMonth('applied_at', $date->month)->count();
         });
 

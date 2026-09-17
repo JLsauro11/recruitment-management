@@ -16,7 +16,7 @@ class DashboardController extends Controller
         $statistics = [
             'new_applicants' => Application::where('status', 'New Applicant')->count(),
             'for_screening' => Application::where('status', 'For Screening')->count(),
-            'today_interviews' => Interview::whereDate('scheduled_at', today())->where('status', 'Scheduled')->count(),
+            'today_interviews' => Interview::whereDate('scheduled_at', today())->whereIn('status', ['Scheduled', 'Rescheduled'])->count(),
             'pending_results' => Application::where('status', 'For Questionnaire Review')->count(),
             'for_job_offer' => Application::where('status', 'For Job Offer')->count(),
             'active_vacancies' => JobVacancy::openForApplications()->count(),
@@ -32,7 +32,7 @@ class DashboardController extends Controller
             ]);
 
         $todaySchedule = Interview::with('application.applicant')
-            ->whereDate('scheduled_at', today())->where('status', 'Scheduled')
+            ->whereDate('scheduled_at', today())->whereIn('status', ['Scheduled', 'Rescheduled'])
             ->orderBy('scheduled_at')->get()->map(fn ($interview) => [
                 'time' => $interview->scheduled_at->format('g:i A'),
                 'name' => $interview->application->applicant->full_name,
