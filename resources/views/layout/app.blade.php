@@ -18,6 +18,7 @@
     <link rel="shortcut icon" href="{{ asset('assets//images/logo/rs8_logo1.png') }}" type="image/png">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
     @stack('styles')
+    <link rel="stylesheet" href="{{ asset('assets/css/responsive-hardening.css') }}">
 <style>
     .premium-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
     .premium-secondary-btn{

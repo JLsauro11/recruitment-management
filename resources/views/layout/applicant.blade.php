@@ -226,6 +226,7 @@
     </style>
 
     @stack('styles')
+    <link rel="stylesheet" href="{{ asset('assets/css/responsive-hardening.css') }}">
 </head>
 <body class="@yield('body_class')">
 <header class="app-header py-3">
