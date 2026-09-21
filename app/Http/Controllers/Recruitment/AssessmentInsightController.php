@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Recruitment;
 use App\Http\Controllers\Controller;
 use App\Models\JobVacancy;
 use App\Services\AssessmentInsightService;
+use App\Services\AiEvidenceInterpreter;
 use Illuminate\Http\Request;
 
 class AssessmentInsightController extends Controller
@@ -26,6 +27,7 @@ class AssessmentInsightController extends Controller
         $criteria = collect();
         $templates = collect();
         $definition = $service->automaticDefinition();
+        $aiDiagnostic = app(AiEvidenceInterpreter::class)->diagnostic();
         $readiness = [
             'automatic' => true,
             'score' => 0,
@@ -152,7 +154,8 @@ class AssessmentInsightController extends Controller
             'criteria',
             'templates',
             'readiness',
-            'definition'
+            'definition',
+            'aiDiagnostic'
         ));
     }
 

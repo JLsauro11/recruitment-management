@@ -9,7 +9,6 @@ use App\Models\{
     AssessmentProfileCriterion,
     AssessmentResult,
     FormField,
-    FormTemplate,
     JobVacancy
 };
 use Carbon\Carbon;
@@ -30,7 +29,7 @@ use Illuminate\Support\Str;
  */
 class AssessmentInsightService
 {
-    public const MODEL_VERSION = 13;
+    public const MODEL_VERSION = 22;
     private const QUALIFICATION_WEIGHT = 45;
     private const SUPPORTING_WEIGHT = 55;
 
@@ -311,6 +310,14 @@ class AssessmentInsightService
             }
         }
 
+        // V15 hybrid interpreter: Gemini conservatively normalizes Tagalog/Taglish/English
+        // evidence and extracts canonical evidence concepts. All scores, weights,
+        // qualification statuses, caps, and rankings remain deterministic here. Any
+        // Gemini/API failure falls back automatically to the original rule-based interpreter.
+        $interpretation = app(AiEvidenceInterpreter::class)->enrich($answerByKey, $vacancy);
+        $answerByKey = $interpretation['answers'];
+        $interpreterMeta = $interpretation['meta'];
+
         $scores = [];
         $weighted = 0.0;
         $scoredWeight = 0;
@@ -347,6 +354,7 @@ class AssessmentInsightService
                 'detail' => $detail,
                 'evidence_items' => $evidenceItems,
                 'comparison' => $comparison,
+                'interpreter_meta' => $interpreterMeta,
             ];
 
             if ($score !== null && $contributesToFit) {
@@ -517,6 +525,11 @@ class AssessmentInsightService
         );
 
         $scores[0]['input_fingerprint'] = $this->inputFingerprint($application);
+        // Persist the interpreter trace on the first score row using both keys.
+        // `interpreter_meta` is the canonical key used by the UI; the older
+        // `evidence_interpreter` key is retained for backward compatibility.
+        $scores[0]['interpreter_meta'] = $interpreterMeta;
+        $scores[0]['evidence_interpreter'] = $interpreterMeta;
         $scores[0]['calculation'] = [
             'qualification_score' => $qualificationScore,
             'supporting_score' => $supportingOverall,
@@ -567,6 +580,11 @@ class AssessmentInsightService
 
         return hash('sha256', json_encode([
             self::MODEL_VERSION, now()->toDateString(),
+            [
+                'ai_enabled' => app(AiEvidenceInterpreter::class)->enabled(),
+                'ai_provider' => (string) config('recruitment_ai.provider', 'gemini'),
+                'ai_model' => (string) config('recruitment_ai.model', 'gemini-3.1-flash-lite'),
+            ],
             $vacancy->only(['id', 'title', 'description', 'qualifications']),
             $vacancy->position?->name,
             $vacancy->qualificationsList->sortBy('id')->map->getAttributes()->values()->all(),
@@ -599,68 +617,16 @@ class AssessmentInsightService
      */
     public function fixedApplicationFieldKeys(): array
     {
-        $keys = [
-            'availability','current_employment_status','notice_period','applied_through','referred_by',
-            'last_name','first_name','middle_name','nickname','present_address','birthdate','age','gender','civil_status','religion','blood_type','cellphone_number','email_address',
-            'elementary_school','elementary_address','elementary_dates',
-            'highschool_school','highschool_address','highschool_dates',
-            'vocational_school','vocational_address','vocational_dates',
-            'college_school','college_address','college_course','college_dates',
-            'work_experience_declaration',
-        ];
-
-        for ($i = 1; $i <= 5; $i++) {
-            array_push($keys,
-                "company_{$i}", "company_address_{$i}", "position_held_{$i}",
-                "employment_dates_{$i}", "employment_end_{$i}", "currently_employed_{$i}"
-            );
-        }
-
-        return array_merge($keys, [
-            'reference_name_1','reference_title_1','reference_company_1','reference_phone_1',
-            'reference_name_2','reference_title_2','reference_company_2','reference_phone_2',
-            'resume',
-        ]);
+        return app(StaticEmploymentFormService::class)->applicationFieldKeys();
     }
 
     /**
-     * Fixed form set requested by the business: one Application for Employment
-     * plus one Employment Questionnaire. Vacancy-specific template assignment is
-     * intentionally ignored so HR never has to configure forms per vacancy.
+     * The public application uses one code-defined static form pair. Database rows
+     * are retained only for stable IDs and historical answer relationships.
      */
     public function templatesForVacancy(JobVacancy $vacancy): Collection
     {
-        // Assessment V8 uses one fixed, system-managed employment form pair.
-        // Never fall back to an arbitrary custom template: doing so could silently
-        // remove evidence fields that the assessment model depends on.
-        $templates = FormTemplate::with([
-                'fields' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
-            ])
-            ->where(function ($query) {
-                $query->where(function ($inner) {
-                    $inner->where('type', 'application')
-                        ->where('name', 'Application for Employment');
-                })->orWhere(function ($inner) {
-                    $inner->where('type', 'questionnaire')
-                        ->where('name', 'Employment Questionnaire');
-                });
-            })
-            ->get();
-
-        $application = $templates->first(fn ($template) => $template->type === 'application'
-            && $template->name === 'Application for Employment');
-        $questionnaire = $templates->first(fn ($template) => $template->type === 'questionnaire'
-            && $template->name === 'Employment Questionnaire');
-
-        if ($application) {
-            $allowed = array_flip($this->fixedApplicationFieldKeys());
-            $application->setRelation('fields', $application->fields
-                ->filter(fn ($field) => isset($allowed[$field->field_key]))
-                ->sortBy(fn ($field) => [(int) $field->sort_order, (int) $field->id])
-                ->values());
-        }
-
-        return collect([$application, $questionnaire])->filter()->values();
+        return app(StaticEmploymentFormService::class)->templates();
     }
 
     private function scoreAutomaticCriterion(string $key, array $answers, JobVacancy $vacancy): ?array
@@ -1795,24 +1761,41 @@ class AssessmentInsightService
 
         $evidence = implode(' ', $values);
 
-        // V9: Role-Specific Skills is a Role Fit component, so only the role title
-        // and REQUIRED vacancy qualifications may influence its numeric score.
-        // Preferred/nice-to-have items are still detected, but are displayed only as
-        // optional advantages/tie-breakers under Vacancy Qualification Match.
+        // Role-Specific Skills is a Role Fit component, so only the role title and
+        // REQUIRED vacancy qualifications may influence its numeric score. Optional
+        // / preferred requirements remain visible only as tie-breaker evidence.
         $context = $this->roleFitContext($vacancy);
         $optionalContext = $this->optionalRoleContext($vacancy);
-        $roleTerms = $this->roleSpecificTerms($vacancy);
-        $evidenceTerms = $this->terms($evidence);
-        $matchedRoleTerms = array_values(array_intersect($roleTerms, $evidenceTerms));
-        $phrases = $this->phraseMatches($context, $evidence);
-        $matchedConcepts = $this->matchedSkillConcepts($context, $evidence);
+        // V23 language-neutral scoring: when Gemini is active, it appends a stable
+        // "Canonical evidence:" suffix to semantic skill fields. Score from that
+        // canonical set instead of free-form normalized prose so equivalent English,
+        // Tagalog and Taglish answers cannot gain/lose points because Gemini chose a
+        // slightly different synonym or sentence structure.
+        $canonicalEvidence = $this->canonicalEvidenceCompetencies($answers, $keys);
+        if ($canonicalEvidence !== []) {
+            $matchedConcepts = $this->matchedSkillConcepts($context, implode(' ', $canonicalEvidence));
+            $optionalConcepts = $optionalContext !== ''
+                ? array_values(array_diff(
+                    $this->matchedSkillConcepts($optionalContext, implode(' ', $canonicalEvidence)),
+                    $matchedConcepts
+                ))
+                : [];
+            // Phrase count is intentionally disabled in canonical mode; canonical
+            // competency evidence already captures the semantic match once.
+            $phrases = 0;
+        } else {
+            // Deterministic fallback for legacy/non-AI records.
+            $phrases = $this->phraseMatches($context, $evidence);
+            $matchedConcepts = $this->matchedSkillConcepts($context, $evidence);
+            $optionalConcepts = $optionalContext !== ''
+                ? array_values(array_diff($this->matchedSkillConcepts($optionalContext, $evidence), $matchedConcepts))
+                : [];
+        }
+
         $vacancyTools = $this->toolNamesInText($context);
         $evidenceTools = $this->toolNamesInText($this->toolUsageEvidenceText($answers));
         $matchedTools = $this->relevantToolMatches($vacancyTools, $evidenceTools, $context);
 
-        $optionalConcepts = $optionalContext !== ''
-            ? array_values(array_diff($this->matchedSkillConcepts($optionalContext, $evidence), $matchedConcepts))
-            : [];
         $optionalVacancyTools = $optionalContext !== '' ? $this->toolNamesInText($optionalContext) : [];
         $optionalMatchedTools = $optionalContext !== ''
             ? array_values(array_diff(
@@ -1821,13 +1804,6 @@ class AssessmentInsightService
             ))
             : [];
 
-        $applicationEvidence = trim(implode(' ', array_filter([
-            $answers['role_similar_project'] ?? '',
-            $answers['role_strongest_requirement'] ?? '',
-        ])));
-        $actionSignals = $this->actionSignalCount($applicationEvidence);
-        $resultSignals = $this->resultSignalCount($applicationEvidence);
-
         $coverage = 0;
         if (trim((string) ($answers['role_relevant_skills'] ?? '')) !== '') $coverage += 25;
         if (trim((string) ($answers['role_tools_systems'] ?? '')) !== '') $coverage += 25;
@@ -1835,11 +1811,23 @@ class AssessmentInsightService
         if (trim((string) ($answers['role_strongest_requirement'] ?? '')) !== '') $coverage += 20;
         $coverage = min(100, $coverage);
 
-        // V8 scores canonical competencies and named tools, not raw keyword hits.
-        // A repeated word such as "Windows" must not be counted several times as
-        // a term, concept, phrase, and tool just because it appears in multiple answers.
         $canonicalCompetencies = array_values(array_unique($matchedConcepts));
         $directSignals = count($canonicalCompetencies) + count($matchedTools);
+
+        // Applied evidence is measured semantically from the two proof/example fields.
+        // Do not count verbs from Gemini prose; verb-count differences are a language
+        // artefact. One demonstrated competency counts once regardless of wording.
+        $appliedCanonical = $this->canonicalEvidenceCompetencies($answers, [
+            'role_similar_project', 'role_strongest_requirement',
+        ]);
+        // V25: project/proof fields establish that evidence was applied, but they no
+        // longer add a second numeric bonus for the same competency. The required
+        // competency itself is already counted in alignmentScore. This removes a
+        // language/model-phrasing double count (e.g. equivalent Taglish receiving
+        // one extra applied unit while English receives zero).
+        $appliedEvidenceUnits = 0;
+        $hasProjectEvidence = trim((string) ($answers['role_similar_project'] ?? '')) !== '';
+
         $alignmentScore = min(100,
             25
             + min(48, count($canonicalCompetencies) * 8)
@@ -1848,15 +1836,14 @@ class AssessmentInsightService
         );
         $applicationScore = min(100,
             35
-            + min(28, $actionSignals * 7)
-            + min(24, $resultSignals * 8)
-            + (trim((string) ($answers['role_similar_project'] ?? '')) !== '' ? 10 : 0)
+            + min(40, $appliedEvidenceUnits * 10)
+            + ($hasProjectEvidence ? 10 : 0)
         );
         $score = (int) round(($alignmentScore * .72) + ($applicationScore * .28));
 
         if ($directSignals === 0) {
             $score = min($score, 40);
-        } elseif ($directSignals === 1 && $actionSignals === 0 && $resultSignals === 0) {
+        } elseif ($directSignals === 1 && $appliedEvidenceUnits === 0) {
             $score = min($score, 56);
         }
         if ($coverage < 50) {
@@ -1874,12 +1861,12 @@ class AssessmentInsightService
             'coverage' => $coverage,
             'detail' => count($matchedLabels) . ' required-baseline competency match(es) · '
                 . count($matchedTools) . ' required-baseline named tool/system match(es) · '
-                . ($actionSignals + $resultSignals) . ' applied-evidence signal(s). Optional/preferred evidence is displayed separately and does not inflate this Role Fit score.',
+                . $appliedEvidenceUnits . ' applied semantic evidence unit(s). Optional/preferred evidence is displayed separately and does not inflate this Role Fit score.',
             'evidence_items' => array_keys($values),
             'comparison' => [
                 'metric' => $score,
                 'primary' => count($matchedLabels) . ' required competencies + ' . count($matchedTools) . ' required tool/system match(es)',
-                'secondary' => $coverage . '% role-evidence coverage · ' . ($actionSignals + $resultSignals) . ' applied signal(s)',
+                'secondary' => $coverage . '% role-evidence coverage · ' . $appliedEvidenceUnits . ' applied semantic evidence unit(s)',
                 'facts' => [
                     ['label' => 'Matched required competencies', 'value' => $matchedLabels ? implode(', ', array_slice($matchedLabels, 0, 8)) : 'No specific required vacancy competency detected'],
                     ['label' => 'Exact tools/systems submitted', 'value' => $submittedTools ? implode(', ', array_slice($submittedTools, 0, 8)) : 'None specifically listed'],
@@ -1887,10 +1874,42 @@ class AssessmentInsightService
                     ['label' => 'Optional competencies (not scored)', 'value' => $optionalConcepts ? implode(', ', array_slice($optionalConcepts, 0, 8)) : 'None additional'],
                     ['label' => 'Optional tools/systems (not scored)', 'value' => $optionalMatchedTools ? implode(', ', array_slice($optionalMatchedTools, 0, 8)) : 'None additional'],
                     ['label' => 'Evidence sources', 'value' => implode(', ', array_map(fn ($key) => Str::headline(str_replace('_', ' ', $key)), array_keys($values)))],
-                    ['label' => 'Applied action/result signals', 'value' => (string) ($actionSignals + $resultSignals)],
+                    ['label' => 'Applied semantic evidence', 'value' => (string) $appliedEvidenceUnits],
                 ],
             ],
         ];
+    }
+
+    /**
+     * Extract the machine-readable canonical evidence suffix added by the Gemini
+     * interpreter. Applicant source answers remain untouched in the database; this
+     * helper only reads the normalized scoring copy.
+     *
+     * @param array<string,mixed> $answers
+     * @param array<int,string> $keys
+     * @return array<int,string>
+     */
+    private function canonicalEvidenceCompetencies(array $answers, array $keys): array
+    {
+        $items = [];
+        foreach ($keys as $key) {
+            $value = (string) ($answers[$key] ?? '');
+            if ($value === '') {
+                continue;
+            }
+            if (!preg_match_all('/Canonical evidence:\s*([^.]*)\./i', $value, $matches)) {
+                continue;
+            }
+            foreach ($matches[1] as $group) {
+                foreach (preg_split('/\s*;\s*/u', (string) $group) ?: [] as $item) {
+                    $item = trim($item);
+                    if ($item !== '') {
+                        $items[Str::lower($item)] = $item;
+                    }
+                }
+            }
+        }
+        return array_values($items);
     }
 
     private function problemSolvingAssessment(array $answers, JobVacancy $vacancy): ?array
@@ -1986,41 +2005,136 @@ class AssessmentInsightService
         $resultContextSignals = $this->resultOutcomeContextCount($resultPlain);
         $emptyOutcome = (bool) preg_match('/^(?:none|n\/a|no\s+result|wala|walang\s+resulta|not\s+applicable)\.?$/i', trim($resultPlain));
 
-        $situationScore = $situationWords >= 12 ? 88 : ($situationWords >= 7 ? 78 : ($situationWords >= 4 ? 62 : ($situationWords > 0 ? 45 : 0)));
-        $situationScore = min(100, $situationScore + min(10, $situationSignals * 5));
+        $semanticMetrics = $this->structuredProblemSemanticMetrics(
+            situationWords: $situationWords,
+            actionWords: $actionWords,
+            resultWords: $resultWords,
+            situationSignals: $situationSignals,
+            actionSignals: $actionSignals,
+            resultSignals: $resultSignals,
+            resultContextSignals: $resultContextSignals,
+            measurableResult: $measurableResult,
+            emptyOutcome: $emptyOutcome,
+            roleOverlap: $roleOverlap,
+        );
 
-        $actionScore = $actionWords >= 15 ? 88 : ($actionWords >= 8 ? 78 : ($actionWords >= 4 ? 60 : ($actionWords > 0 ? 42 : 0)));
-        $actionScore = min(100, $actionScore + min(12, $actionSignals * 4));
+        $hasActionDetail = $semanticMetrics['has_action_detail'];
+        $hasResultDetail = $semanticMetrics['has_result_detail'];
+        $hasActionSignal = $semanticMetrics['has_action_signal'];
+        $hasResultSignal = $semanticMetrics['has_result_signal'];
+        $hasOutcomeQualifier = $semanticMetrics['has_outcome_qualifier'];
+        $hasRoleContext = $semanticMetrics['has_role_context'];
+        $coverage = $semanticMetrics['coverage'];
+        $score = $semanticMetrics['score'];
+
+        $actionLabel = $hasActionDetail ? 'Provided' : ($actionWords > 0 ? 'Too brief' : 'Missing');
+        $resultLabel = $hasResultDetail ? 'Provided' : ($resultWords > 0 ? 'Weak / unclear' : 'Missing');
+
+        return [
+            'score' => max(0, min(100, $score)),
+            'coverage' => min(100, $coverage),
+            'detail' => 'Structured Situation–Action–Result evidence · Action ' . strtolower($actionLabel)
+                . ' · Result ' . strtolower($resultLabel)
+                . ($measurableResult ? ' · measurable outcome present'
+                    : ($hasOutcomeQualifier ? ' · concrete outcome qualifier present' : ' · outcome specificity is limited')) . '.',
+            'evidence_items' => array_values(array_filter(['Problem / Situation', $action !== '' ? 'Action' : null, $result !== '' ? 'Result' : null])),
+            'comparison' => [
+                'metric' => max(0, min(100, $score)),
+                'primary' => 'Action ' . strtolower($actionLabel) . ' / Result ' . strtolower($resultLabel),
+                'secondary' => $coverage . '% structured SAR coverage · ' . ($hasRoleContext ? 'required-role context evidenced' : 'required-role context not clearly evidenced'),
+                'facts' => [
+                    ['label' => 'Situation', 'value' => $situationPlain !== '' ? Str::limit($situationPlain, 190, '...') : 'Not provided'],
+                    ['label' => 'Action', 'value' => $actionPlain !== '' ? Str::limit($actionPlain, 190, '...') : 'Not provided'],
+                    ['label' => 'Result', 'value' => $resultPlain !== '' ? Str::limit($resultPlain, 190, '...') : 'Not provided'],
+                    ['label' => 'Role-context evidence', 'value' => $roleContextLabels ? implode(', ', $roleContextLabels) : 'No required-role concept directly evidenced'],
+                    ['label' => 'Action specificity', 'value' => ($hasActionSignal ? 'Specific action evidence present' : 'No specific action evidence') . ' · ' . $actionSignals . ' raw signal(s)'],
+                    ['label' => 'Result specificity', 'value' => ($hasResultSignal ? 'Outcome evidence present' : 'No clear outcome evidence') . ' · ' . $resultSignals . ' raw outcome signal(s) · ' . $resultContextSignals . ' qualifier(s)' . ($measurableResult ? ' · measurable value present' : '')],
+                ],
+            ],
+        ];
+    }
+
+
+    /**
+     * Language-neutral scoring core for structured Situation-Action-Result evidence.
+     * Raw word/signal counts are reduced to bounded semantic categories so equivalent
+     * English, Tagalog and Taglish paraphrases do not receive different scores just
+     * because one translation uses more words or synonymous verbs.
+     *
+     * @return array<string,mixed>
+     */
+    private function structuredProblemSemanticMetrics(
+        int $situationWords,
+        int $actionWords,
+        int $resultWords,
+        int $situationSignals,
+        int $actionSignals,
+        int $resultSignals,
+        int $resultContextSignals,
+        bool $measurableResult,
+        bool $emptyOutcome,
+        int $roleOverlap,
+    ): array {
+        $hasSituationDetail = $situationWords >= 4;
+        $hasActionDetail = $actionWords >= 4;
+        $hasResultDetail = $resultWords >= 3 && !$emptyOutcome;
+        $hasSituationSignal = $situationSignals > 0;
+        $hasActionSignal = $actionSignals > 0;
+        $hasResultSignal = $resultSignals > 0;
+        $hasOutcomeQualifier = $resultContextSignals > 0 || $measurableResult;
+        $hasRoleContext = $roleOverlap > 0;
+
+        $situationScore = 0;
+        if ($situationWords > 0) {
+            $situationScore = 45
+                + ($hasSituationDetail ? 25 : 0)
+                + ($hasSituationSignal ? 15 : 0);
+            $situationScore = min(90, $situationScore);
+        }
+
+        $actionScore = 0;
+        if ($actionWords > 0) {
+            $actionScore = 42
+                + ($hasActionDetail ? 24 : 0)
+                + ($hasActionSignal ? 24 : 0);
+            $actionScore = min(92, $actionScore);
+        }
 
         if ($emptyOutcome) {
             $resultScore = 20;
+        } elseif ($resultWords > 0) {
+            // V25: a clear result is a clear result regardless of whether Gemini's
+            // English paraphrase happens to include an extra outcome qualifier.
+            // Measurable evidence remains visible in the UI but does not make an
+            // otherwise equivalent translated result score differently.
+            $resultScore = 38
+                + ($hasResultDetail ? 22 : 0)
+                + ($hasResultSignal ? 30 : 0);
+            $resultScore = min(92, $resultScore);
         } else {
-            $resultScore = $resultWords >= 12 ? 84 : ($resultWords >= 6 ? 72 : ($resultWords >= 3 ? 55 : ($resultWords > 0 ? 38 : 0)));
-            $resultScore = min(100, $resultScore
-                + min(12, $resultSignals * 4)
-                + min(10, $resultContextSignals * 5)
-                + ($measurableResult ? 8 : 0));
+            $resultScore = 0;
         }
 
-        $roleScore = min(100, 50 + ($roleOverlap * 10));
-        $specificity = min(100, 42
-            + min(20, $actionSignals * 5)
-            + min(18, $resultSignals * 6)
-            + min(12, $resultContextSignals * 4)
-            + ($measurableResult ? 8 : 0));
+        $roleScore = $hasRoleContext ? 90 : 50;
+        $specificity = min(100,
+            40
+            + ($hasActionSignal ? 20 : 0)
+            + ($hasResultSignal ? 30 : 0)
+            + ($hasRoleContext ? 10 : 0)
+        );
 
         $coverage = 0;
-        if ($situationWords >= 4) {
+        if ($hasSituationDetail) {
             $coverage += 20;
         } elseif ($situationWords > 0) {
             $coverage += 10;
         }
-        if ($actionWords >= 4) {
+        if ($hasActionDetail) {
             $coverage += 40;
         } elseif ($actionWords > 0) {
             $coverage += 20;
         }
-        if ($resultWords >= 3 && !$emptyOutcome) {
+        if ($hasResultDetail) {
             $coverage += 40;
         } elseif ($resultWords > 0) {
             $coverage += 20;
@@ -2039,40 +2153,29 @@ class AssessmentInsightService
         if ($resultWords === 0 || $emptyOutcome) {
             $score = min($score, 62);
         }
-        if ($actionWords < 4) {
+        if (!$hasActionDetail) {
             $score = min($score, 58);
         }
-        // A strong qualitative outcome can score highly, but near-perfect problem-solving
-        // evidence should require an objectively bounded/measurable result. This keeps a
-        // well-written self-report from looking more certain than the evidence supports.
-        if (!$measurableResult && $resultWords > 0 && !$emptyOutcome) {
-            $score = min($score, $resultContextSignals >= 2 ? 94 : 92);
+        if (!$measurableResult && $hasResultDetail) {
+            $score = min($score, $hasOutcomeQualifier ? 94 : 92);
         }
-
-        $actionLabel = $actionWords >= 4 ? 'Provided' : ($actionWords > 0 ? 'Too brief' : 'Missing');
-        $resultLabel = $resultWords >= 3 && !$emptyOutcome ? 'Provided' : ($resultWords > 0 ? 'Weak / unclear' : 'Missing');
 
         return [
             'score' => max(0, min(100, $score)),
             'coverage' => min(100, $coverage),
-            'detail' => 'Structured Situation–Action–Result evidence · Action ' . strtolower($actionLabel)
-                . ' · Result ' . strtolower($resultLabel)
-                . ($measurableResult ? ' · measurable outcome present'
-                    : ($resultContextSignals > 0 ? ' · concrete outcome qualifier present' : ' · outcome specificity is limited')) . '.',
-            'evidence_items' => array_values(array_filter(['Problem / Situation', $action !== '' ? 'Action' : null, $result !== '' ? 'Result' : null])),
-            'comparison' => [
-                'metric' => max(0, min(100, $score)),
-                'primary' => 'Action ' . strtolower($actionLabel) . ' / Result ' . strtolower($resultLabel),
-                'secondary' => $coverage . '% structured SAR coverage · ' . $roleOverlap . ' role-context match(es)',
-                'facts' => [
-                    ['label' => 'Situation', 'value' => $situationPlain !== '' ? Str::limit($situationPlain, 190, '...') : 'Not provided'],
-                    ['label' => 'Action', 'value' => $actionPlain !== '' ? Str::limit($actionPlain, 190, '...') : 'Not provided'],
-                    ['label' => 'Result', 'value' => $resultPlain !== '' ? Str::limit($resultPlain, 190, '...') : 'Not provided'],
-                    ['label' => 'Role-context evidence', 'value' => $roleContextLabels ? implode(', ', $roleContextLabels) : 'No required-role concept directly evidenced'],
-                    ['label' => 'Action specificity', 'value' => $actionSignals . ' action signal(s)'],
-                    ['label' => 'Result specificity', 'value' => $resultSignals . ' outcome signal(s) · ' . $resultContextSignals . ' concrete qualifier(s)' . ($measurableResult ? ' · measurable value present' : '')],
-                ],
-            ],
+            'has_situation_detail' => $hasSituationDetail,
+            'has_action_detail' => $hasActionDetail,
+            'has_result_detail' => $hasResultDetail,
+            'has_situation_signal' => $hasSituationSignal,
+            'has_action_signal' => $hasActionSignal,
+            'has_result_signal' => $hasResultSignal,
+            'has_outcome_qualifier' => $hasOutcomeQualifier,
+            'has_role_context' => $hasRoleContext,
+            'situation_score' => $situationScore,
+            'action_score' => $actionScore,
+            'result_score' => $resultScore,
+            'role_score' => $roleScore,
+            'specificity' => $specificity,
         ];
     }
 
@@ -2174,9 +2277,6 @@ class AssessmentInsightService
 
     private function roleEvidenceQualityAssessment(array $answers, JobVacancy $vacancy): ?array
     {
-        // Four semantic evidence dimensions. V8 combines related role-focused fields so the
-        // evidence-quality score is not distorted merely because the form was made more
-        // structured than the legacy four-textarea version.
         $dimensions = [
             'Role skills / tools' => trim(implode(' ', array_filter([
                 $answers['role_relevant_skills'] ?? '',
@@ -2196,9 +2296,6 @@ class AssessmentInsightService
         }
 
         $answered = count($values);
-        // V8 gives the structured SAR dimension partial coverage when Situation,
-        // Action, or Result is missing. A Situation + Result answer is not the same
-        // evidence completeness as a full Situation-Action-Result response.
         $coverage = 0;
         if (trim((string) ($dimensions['Role skills / tools'] ?? '')) !== '') $coverage += 25;
         if (trim((string) ($dimensions['Similar work example'] ?? '')) !== '') $coverage += 25;
@@ -2207,41 +2304,69 @@ class AssessmentInsightService
         if (trim((string) ($answers['role_problem_result'] ?? '')) !== '') $coverage += 8;
         if (trim((string) ($dimensions['Strongest requirement proof'] ?? '')) !== '') $coverage += 25;
         $coverage = min(100, $coverage);
+
         $specificityScores = [];
         $allAction = 0;
         $allResult = 0;
         $toolEvidence = [];
+        $semanticEvidenceUnits = 0;
+        $allCanonicalEvidence = [];
 
         foreach ($values as $label => $value) {
             $plain = trim(preg_replace('/\s+/', ' ', strip_tags($value)));
             $words = str_word_count($plain);
             $actions = $this->actionSignalCount($plain);
             $results = $this->resultSignalCount($plain);
-            // Bare product/version numbers (for example Windows 11 or Microsoft 365)
-            // are not quantitative evidence. Count only numbers tied to a meaningful
-            // workload, outcome, duration, or quality unit.
-            $numbers = $this->measurableEvidenceCount($plain) > 0 ? 1 : 0;
+            $numbers = $this->measurableEvidenceCount($plain) > 0;
             $tools = $this->toolNamesInText($plain);
 
-            $base = $words >= 40 ? 84 : ($words >= 24 ? 74 : ($words >= 12 ? 60 : ($words >= 6 ? 48 : 34)));
-            if ($label === 'Role skills / tools' && count($tools) > 0) {
-                $base += 5;
-            }
+            // V23: score semantic evidence categories instead of exact prose length
+            // or raw verb counts. Equivalent translated answers therefore land in
+            // the same quality bucket while genuinely sparse evidence remains weak.
+            $hasSubstance = $words >= 6;
+            $hasAction = $actions > 0;
+            $hasResult = $results > 0;
+            $hasTools = count($tools) > 0;
+
+            $dimensionScore = 40
+                + ($hasSubstance ? 15 : 0)
+                + ($hasAction ? 15 : 0)
+                + ($hasResult ? 15 : 0)
+                + ($hasTools ? 10 : 0)
+                + ($numbers ? 5 : 0);
+
             if ($label === 'Problem-solving SAR') {
                 $hasSituation = trim((string) ($answers['role_problem_solving'] ?? '')) !== '';
                 $hasSeparateAction = trim((string) ($answers['role_problem_action'] ?? '')) !== '';
                 $hasSeparateResult = trim((string) ($answers['role_problem_result'] ?? '')) !== '';
-                $base += $hasSituation ? 2 : -8;
-                $base += $hasSeparateAction ? 7 : -18;
-                $base += $hasSeparateResult ? 7 : -16;
+                $dimensionScore += $hasSituation ? 2 : -8;
+                $dimensionScore += $hasSeparateAction ? 4 : -18;
+                $dimensionScore += $hasSeparateResult ? 4 : -16;
             }
 
-            $specificityScores[] = min(100, $base + min(12, ($actions + $results) * 3) + ($numbers ? 5 : 0));
-            $allAction += $actions;
-            $allResult += $results;
+            $canonicalForDimension = match ($label) {
+                'Role skills / tools' => $this->canonicalEvidenceCompetencies($answers, ['role_relevant_skills','role_tools_systems']),
+                'Similar work example' => $this->canonicalEvidenceCompetencies($answers, ['role_similar_project']),
+                'Strongest requirement proof' => $this->canonicalEvidenceCompetencies($answers, ['role_strongest_requirement']),
+                default => [],
+            };
+            if ($canonicalForDimension !== []) {
+                // V25: canonical concepts are de-duplicated assessment-wide. The same
+                // competency repeated in Skills, Similar Project and Strongest Proof
+                // is one evidence concept, not three verbosity points.
+                foreach ($canonicalForDimension as $canonicalItem) {
+                    $allCanonicalEvidence[Str::lower(trim((string) $canonicalItem))] = $canonicalItem;
+                }
+                $dimensionScore += min(10, count(array_unique(array_map('strtolower', $canonicalForDimension))) * 2);
+            }
+
+            $specificityScores[] = max(0, min(100, $dimensionScore));
+            $allAction += $hasAction ? 1 : 0;
+            $allResult += $hasResult ? 1 : 0;
             $toolEvidence = array_merge($toolEvidence, $tools);
         }
 
+        $semanticEvidenceUnits = count($allCanonicalEvidence);
         $specificity = $specificityScores ? (int) round(array_sum($specificityScores) / count($specificityScores)) : 0;
         $normalized = collect($values)
             ->map(fn ($value) => Str::lower(trim(preg_replace('/\s+/', ' ', strip_tags($value)))))
@@ -2259,7 +2384,7 @@ class AssessmentInsightService
             'score' => $score,
             'coverage' => $coverage,
             'detail' => $answered . '/' . count($dimensions) . ' role-evidence dimensions answered · specificity ' . $specificity
-                . '% · ' . ($allAction + $allResult) . ' concrete action/result signal(s). This is Role Evidence Quality only; it does not add Role Fit points.',
+                . '% · ' . ($allAction + $allResult) . ' semantic action/result category signal(s). This is Role Evidence Quality only; it does not add Role Fit points.',
             'evidence_items' => array_keys($values),
             'comparison' => [
                 'metric' => $score,
@@ -2273,7 +2398,8 @@ class AssessmentInsightService
                         trim((string) ($answers['role_problem_action'] ?? '')) !== '' ? 'Action' : null,
                         trim((string) ($answers['role_problem_result'] ?? '')) !== '' ? 'Result' : null,
                     ])->filter()->implode(' + ') ?: 'Not provided'],
-                    ['label' => 'Concrete action/result signals', 'value' => (string) ($allAction + $allResult)],
+                    ['label' => 'Semantic action/result categories', 'value' => (string) ($allAction + $allResult)],
+                    ['label' => 'Canonical evidence units', 'value' => (string) $semanticEvidenceUnits],
                     ['label' => 'Named tools mentioned', 'value' => $toolEvidence ? implode(', ', array_slice(array_values(array_unique($toolEvidence)), 0, 8)) : 'None detected'],
                 ],
             ],
@@ -3215,7 +3341,7 @@ class AssessmentInsightService
             'Video editing' => ['video editing','video editor','motion graphics'],
             'IT support / troubleshooting' => ['it support','troubleshooting','computer repair','hardware troubleshooting','help desk','helpdesk'],
             'Windows support' => ['windows troubleshooting','windows support','windows 10','windows 11','microsoft windows'],
-            'Hardware / endpoint support' => ['hardware support','hardware/software support','hardware troubleshooting','hardware diagnostics','hardware replacement','desktop support','laptop support'],
+            'Hardware / endpoint support' => ['hardware support','hardware/software support','hardware and software support','hardware troubleshooting','hardware diagnostics','hardware replacement','desktop support','laptop support'],
             'Networking' => ['networking','network configuration','basic networking','network support','lan','wan','router configuration','tcp/ip','connectivity'],
             'System administration' => ['system administration','systems administration','active directory administration','windows server administration','account administration'],
             'Documentation' => ['documentation','ticket documentation','ticket handling','knowledge base','documented'],

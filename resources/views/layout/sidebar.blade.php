@@ -22,7 +22,6 @@
             <li class="sidebar-title">RECRUITMENT</li>
             <li class="sidebar-item {{ request()->routeIs($prefix.'.applicants.*')?'active':'' }}"><a href="{{ route($prefix.'.applicants.index') }}" class="sidebar-link"><i class="bi bi-people-fill"></i><span>Applicants</span></a></li>
             <li class="sidebar-item {{ request()->routeIs($prefix.'.interviews.*')?'active':'' }}"><a href="{{ route($prefix.'.interviews.index') }}" class="sidebar-link"><i class="bi bi-calendar-event-fill"></i><span>Interviews</span></a></li>
-            <li class="sidebar-item {{ request()->routeIs($prefix.'.forms.*')?'active':'' }}"><a href="{{ route($prefix.'.forms.index') }}" class="sidebar-link"><i class="bi bi-ui-checks-grid"></i><span>Form Templates</span></a></li>
             {{--<li class="sidebar-item"><a href="{{ route('careers.index') }}" target="_blank" class="sidebar-link"><i class="bi bi-box-arrow-up-right"></i><span>Public Application Link</span></a></li>--}}
             <li class="sidebar-item {{ request()->routeIs($prefix.'.hiring-status.*')?'active':'' }}"><a href="{{ route($prefix.'.hiring-status.index') }}" class="sidebar-link"><i class="bi bi-arrow-repeat"></i><span>Hiring Status</span></a></li>
             <li class="sidebar-item {{ request()->routeIs($prefix.'.assessment-insights.*')?'active':'' }}"><a href="{{ route($prefix.'.assessment-insights.index') }}" class="sidebar-link"><i class="bi bi-stars"></i><span>Assessment Insights</span></a></li>

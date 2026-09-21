@@ -19,8 +19,7 @@ class DatabaseSeeder extends Seeder
         // so production databases are never populated with sample recruitment data.
         if (app()->environment(['local', 'testing'])) {
             $this->call([
-                ItSpecialistSampleApplicantsSeeder::class,
-                AssessmentValidationDemoSeeder::class,
+                AssessmentInsightsTestSeeder::class,
             ]);
         }
     }

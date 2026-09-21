@@ -10,6 +10,7 @@ use App\Models\JobVacancy;
 use App\Models\JobVacancyQualification;
 use App\Models\Position;
 use App\Services\AssessmentInsightService;
+use App\Services\StaticEmploymentFormService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -27,6 +28,8 @@ class AssessmentValidationDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        app(StaticEmploymentFormService::class)->syncToDatabase();
+
         $assessment = app(AssessmentInsightService::class);
 
         foreach ($this->vacancyDefinitions() as $definition) {

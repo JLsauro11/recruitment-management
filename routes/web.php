@@ -5,7 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\HR\DashboardController as HRDashboardController;
 use App\Http\Controllers\Admin\{DepartmentController, PositionController, VacancyController, UserController, ApplicantController, SettingController};
-use App\Http\Controllers\Recruitment\{InterviewController, PipelineController, ReportController, FormTemplateController, NotificationController, AssessmentInsightController};
+use App\Http\Controllers\Recruitment\{InterviewController, PipelineController, ReportController, NotificationController, AssessmentInsightController};
 use App\Http\Controllers\Applicant\FormController;
 
 Route::middleware('guest')->group(function () {
@@ -59,10 +59,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('interviews/data', [InterviewController::class, 'data'])->name('interviews.data');
     Route::resource('interviews', InterviewController::class)->except(['create','edit']);
 
-    Route::get('forms/data', [FormTemplateController::class, 'data'])->name('forms.data');
-    Route::get('forms/sections', [FormTemplateController::class, 'sections'])->name('forms.sections');
-    Route::post('forms/reorder', [FormTemplateController::class, 'reorder'])->name('forms.reorder');
-    Route::resource('forms', FormTemplateController::class)->parameters(['forms' => 'formTemplate'])->except(['create','edit']);
 
     Route::get('assessment-insights', [AssessmentInsightController::class, 'index'])->name('assessment-insights.index');
     Route::post('assessment-insights/recalculate', [AssessmentInsightController::class, 'recalculate'])->name('assessment-insights.recalculate');
@@ -110,10 +106,6 @@ Route::prefix('hr')->name('hr.')->middleware(['auth', 'role:hr'])->group(functio
     Route::get('interviews/data', [InterviewController::class, 'data'])->name('interviews.data');
     Route::resource('interviews', InterviewController::class)->except(['create','edit']);
 
-    Route::get('forms/data', [FormTemplateController::class, 'data'])->name('forms.data');
-    Route::get('forms/sections', [FormTemplateController::class, 'sections'])->name('forms.sections');
-    Route::post('forms/reorder', [FormTemplateController::class, 'reorder'])->name('forms.reorder');
-    Route::resource('forms', FormTemplateController::class)->parameters(['forms' => 'formTemplate'])->except(['create','edit']);
 
     Route::get('assessment-insights', [AssessmentInsightController::class, 'index'])->name('assessment-insights.index');
     Route::post('assessment-insights/recalculate', [AssessmentInsightController::class, 'recalculate'])->name('assessment-insights.recalculate');

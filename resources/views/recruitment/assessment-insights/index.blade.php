@@ -11,6 +11,24 @@
     $averageReliability = $assessed->count() ? round($assessed->avg(fn ($application) => $application->assessmentResult->confidence), 1) : 0;
     $strongFits = $assessed->filter(fn ($application) => $application->assessmentResult->fit_label === 'Strong Fit')->count();
 
+    // V17: read interpreter metadata robustly from current and legacy score rows.
+    $interpreterMetaFor = function ($result): array {
+        $rows = collect($result?->category_scores ?? []);
+        $first = (array) ($rows->first() ?? []);
+        $meta = (array) ($first['interpreter_meta'] ?? $first['evidence_interpreter'] ?? []);
+        if ($meta !== []) {
+            return $meta;
+        }
+        foreach ($rows as $row) {
+            $row = (array) $row;
+            $meta = (array) ($row['interpreter_meta'] ?? $row['evidence_interpreter'] ?? []);
+            if ($meta !== []) {
+                return $meta;
+            }
+        }
+        return [];
+    };
+
     $fitClass = function (?string $fit) {
         return match ($fit) {
             'Strong Fit' => 'fit-strong',
@@ -98,7 +116,7 @@
 .ai-tabs{display:flex;gap:6px;flex-wrap:wrap;padding:5px;background:#f0f3f7;border-radius:14px;width:max-content;max-width:100%}.ai-tabs .nav-link{border:0;border-radius:10px;padding:9px 14px;color:#687385;font-size:12px;font-weight:850}.ai-tabs .nav-link.active{background:#fff;color:#171a20;box-shadow:0 3px 10px rgba(17,24,39,.08)}
 .panel{border-radius:20px;padding:20px}.section-kicker{font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#8b94a2}.section-title{font-size:18px;font-weight:900;letter-spacing:-.025em;color:#20242c}.section-copy{font-size:12px;color:#7c8695;line-height:1.5}
 .auto-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;background:#e9f8ef;color:#157347;font-size:10px;font-weight:900}.soft-chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 8px;background:#f1f3f6;color:#657083;font-size:10px;font-weight:800}
-.rank-card{border-radius:18px;padding:16px 17px;margin-bottom:10px}.rank-no{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#f1f3f6;color:#414956;font-weight:900;flex:0 0 38px}.rank-no.top{background:#171a20;color:#fff}.candidate-name{font-weight:900;color:#1d2128;line-height:1.25}.candidate-meta{font-size:11px;color:#8a93a1}.fit{display:inline-flex;align-items:center;width:max-content;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:900}.fit-strong{background:#e9f8ef;color:#157347}.fit-good{background:#eaf2ff;color:#255fb0}.fit-moderate{background:#fff5da;color:#916000}.fit-review{background:#fdecec;color:#b4232a}.fit-evidence{background:#f0f2f5;color:#596273}.required-gap-toggle{line-height:1.35!important}.required-gap-toggle:hover{text-decoration:underline!important}.required-gap-panel{border-radius:14px;padding:12px 14px;border:1px solid #e6eaf0;background:#fbfcfd}.required-gap-panel-danger{border-color:#f1c7ca;background:#fff7f7}.required-gap-panel-warning{border-color:#f0dba9;background:#fffbef}.required-gap-title{font-size:11px;font-weight:900;color:#343b46;margin-bottom:3px}.required-gap-panel-danger .required-gap-title{color:#a61b22}.required-gap-item{padding:9px 0;border-top:1px solid rgba(116,126,143,.14)}.required-gap-item:first-of-type{border-top:0}
+.rank-card{border-radius:18px;padding:16px 17px;margin-bottom:10px}.rank-no{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#f1f3f6;color:#414956;font-weight:900;flex:0 0 38px}.rank-no.top{background:#171a20;color:#fff}.candidate-name{font-weight:900;color:#1d2128;line-height:1.25}.candidate-meta{font-size:11px;color:#8a93a1}.fit{display:inline-flex;align-items:center;width:max-content;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:900}.fit-strong{background:#e9f8ef;color:#157347}.fit-good{background:#eaf2ff;color:#255fb0}.fit-moderate{background:#fff5da;color:#916000}.fit-review{background:#fdecec;color:#b4232a}.fit-evidence{background:#f0f2f5;color:#596273}.ai-diag{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;border:1px solid #e5e9ef;background:#fff;border-radius:12px;font-size:11px;color:#566170}.ai-diag-dot{width:9px;height:9px;border-radius:50%;display:inline-block}.ai-diag-dot.on{background:#198754}.ai-diag-dot.off{background:#6c757d}.ai-source-chip{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 7px;border-radius:999px;background:#f3f5f8;color:#596273;font-size:9px;font-weight:800}.ai-source-chip.ai{background:#edf8f0;color:#157347}.ai-trace{max-width:390px;font-size:9px;color:#667181}.ai-trace summary{cursor:pointer;font-weight:850;color:#596273;list-style:none}.ai-trace summary::-webkit-details-marker{display:none}.ai-trace summary:before{content:'▸';display:inline-block;margin-right:5px}.ai-trace[open] summary:before{content:'▾'}.ai-trace-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:6px}.ai-trace-grid span{display:block;border:1px solid #e7ebf1;background:#fafbfc;border-radius:7px;padding:5px 6px;overflow-wrap:anywhere}.ai-trace-grid b{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.04em;color:#9aa2ae;margin-bottom:1px}.ai-trace-reason{margin-top:6px;border-radius:7px;background:#f6f8fb;padding:6px 7px;line-height:1.4;white-space:normal}.ai-trace-reason.warn{background:#fff5df;color:#805400}.required-gap-toggle{line-height:1.35!important}.required-gap-toggle:hover{text-decoration:underline!important}.required-gap-panel{border-radius:14px;padding:12px 14px;border:1px solid #e6eaf0;background:#fbfcfd}.required-gap-panel-danger{border-color:#f1c7ca;background:#fff7f7}.required-gap-panel-warning{border-color:#f0dba9;background:#fffbef}.required-gap-title{font-size:11px;font-weight:900;color:#343b46;margin-bottom:3px}.required-gap-panel-danger .required-gap-title{color:#a61b22}.required-gap-item{padding:9px 0;border-top:1px solid rgba(116,126,143,.14)}.required-gap-item:first-of-type{border-top:0}
 .score-ring{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--red) calc(var(--score)*1%),#eceff3 0)}.score-ring:after{content:"";position:absolute;inset:6px;background:#fff;border-radius:50%}.score-ring b{position:relative;z-index:2;font-size:15px}.score-label{font-size:9px;color:#8a93a1;text-transform:uppercase;font-weight:900}
 .signal-title{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#717b8b;margin-bottom:5px}.signal-title b{color:#303640}.mini-bar{height:6px;background:#eef1f4;border-radius:999px;overflow:hidden}.mini-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#aa1016,#e22b32)}.na-bar span{width:0!important}.na-value{color:#98a1ad!important}
 .insight-box{background:#f8fafc;border:1px solid #e9edf3;border-radius:15px;padding:14px}.insight-heading{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#6e7888}.insight-list{list-style:none;margin:0;padding:0}.insight-list li{font-size:12px;line-height:1.45;color:#4f5968;padding:7px 0;border-bottom:1px solid #edf0f4}.insight-list li:last-child{border:0}.score-table td,.score-table th{font-size:11px;vertical-align:middle}.score-table th{color:#717b8a;font-weight:800}.score-table td{color:#3e4652}.coverage{font-size:9px;font-weight:850;padding:4px 7px;border-radius:999px;background:#eef1f4;color:#657083}
@@ -198,6 +216,42 @@
             </div>
         @endif
 
+        @php
+            $interpreterSummary = collect($results ?? [])->map(fn ($application) => $interpreterMetaFor($application->assessmentResult));
+            $geminiUsedCount = $interpreterSummary->filter(fn ($meta) =>
+                ($meta['mode'] ?? '') === 'gemini_semantic_plus_rules' && !($meta['fallback_used'] ?? false)
+            )->count();
+            $fallbackUsedCount = $interpreterSummary->filter(fn ($meta) => ($meta['fallback_used'] ?? false))->count();
+            $unknownInterpreterCount = $interpreterSummary->filter(fn ($meta) => $meta === [])->count();
+            $latestInterpreterMeta = $interpreterSummary
+                ->filter(fn ($meta) => !empty($meta['attempted_at']))
+                ->sortByDesc(fn ($meta) => $meta['attempted_at'])
+                ->first() ?? [];
+        @endphp
+        <div class="ai-diag mb-3">
+            <span class="ai-diag-dot {{ ($aiDiagnostic['configured'] ?? false) ? 'on' : 'off' }}"></span>
+            <strong>Evidence Interpreter:</strong>
+            <span>{{ ($aiDiagnostic['configured'] ?? false) ? 'Gemini configured' : 'Rule-based fallback' }}</span>
+            <span>Provider: {{ strtoupper($aiDiagnostic['provider'] ?? 'gemini') }}</span>
+            <span>Model: {{ $aiDiagnostic['model'] ?? 'gemini-3.1-flash-lite' }}</span>
+            <span>Current results: {{ $geminiUsedCount }} Gemini AI · {{ $fallbackUsedCount }} fallback</span>
+            @if($unknownInterpreterCount > 0)
+                <span>{{ $unknownInterpreterCount }} legacy/unknown</span>
+            @endif
+            @if(!empty($latestInterpreterMeta))
+                <span>Last API status: HTTP {{ $latestInterpreterMeta['http_status'] ?? '—' }}</span>
+                @if(!empty($latestInterpreterMeta['response_model_version']))
+                    <span>Response model: {{ $latestInterpreterMeta['response_model_version'] }}</span>
+                @endif
+            @endif
+            <span>Fallback: Always available</span>
+            @if(!($aiDiagnostic['configured'] ?? false))
+                <span class="text-muted">Gemini will be used after AI is enabled and a valid API key is configured.</span>
+            @elseif($fallbackUsedCount > 0 && $geminiUsedCount === 0)
+                <span class="text-warning-emphasis">Gemini is configured, but the current assessments fell back to deterministic rules. Open a candidate's fallback reason below.</span>
+            @endif
+        </div>
+
         <ul class="nav ai-tabs mb-3" role="tablist">
             <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#rankingPane" type="button"><i class="bi bi-trophy me-1"></i> Candidate Ranking</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#comparisonPane" type="button"><i class="bi bi-columns-gap me-1"></i> Compare 2 Candidates</button></li>
@@ -230,6 +284,8 @@
                         $experience = $scoreRows->get('relevant_experience', []);
                         $skills = $scoreRows->get('role_specific_skills', []);
                         $problem = $scoreRows->get('problem_solving', []);
+                        $interpreterMeta = $interpreterMetaFor($result);
+                        $interpreterIsAi = ($interpreterMeta['mode'] ?? '') === 'gemini_semantic_plus_rules' && !($interpreterMeta['fallback_used'] ?? false);
                         $requiredFailed = (int) ($qualification['required_not_matched_count'] ?? 0);
                         $requiredPending = (int) ($qualification['required_not_verified_count'] ?? 0);
                         $requiredGapDetails = collect($qualification['qualification_details'] ?? [])->filter(fn ($detail) =>
@@ -247,6 +303,51 @@
                                     <div class="min-w-0">
                                         <div class="candidate-name text-truncate">{{ $application->applicant?->full_name ?? 'Applicant' }}</div>
                                         <div class="candidate-meta">{{ $application->reference_no }} · {{ $application->status }}</div>
+                                        <div class="ai-source-chip {{ $interpreterIsAi ? 'ai' : '' }}" title="{{ $interpreterMeta['reason'] ?? '' }}">
+                                            <i class="bi {{ $interpreterIsAi ? 'bi-stars' : 'bi-diagram-3' }}"></i>
+                                            {{ $interpreterIsAi ? 'Gemini AI' : 'Rule fallback' }}
+                                            @if($interpreterIsAi && isset($interpreterMeta['average_confidence']))
+                                                · {{ round(((float) $interpreterMeta['average_confidence']) * 100) }}% semantic confidence
+                                            @endif
+                                            @if($interpreterIsAi && ($interpreterMeta['cached'] ?? false)) · cached @endif
+                                        </div>
+                                        @if(!empty($interpreterMeta))
+                                            <details class="ai-trace mt-1">
+                                                <summary>Interpreter trace</summary>
+                                                <div class="ai-trace-grid">
+                                                    <span><b>Source</b>{{ $interpreterIsAi ? 'Gemini AI + deterministic scoring' : 'Deterministic fallback' }}</span>
+                                                    <span><b>Provider</b>{{ strtoupper($interpreterMeta['provider'] ?? 'gemini') }}</span>
+                                                    <span><b>Model</b>{{ $interpreterMeta['model'] ?? '—' }}</span>
+                                                    <span><b>HTTP</b>{{ $interpreterMeta['http_status'] ?? (($interpreterMeta['ai_attempted'] ?? false) ? 'No response' : 'Not attempted') }}</span>
+                                                    <span><b>AI attempted</b>{{ ($interpreterMeta['ai_attempted'] ?? false) ? 'Yes' : 'No' }}</span>
+                                                    <span><b>Cache</b>{{ ($interpreterMeta['cached'] ?? false) ? 'Hit' : 'No / not applicable' }}</span>
+                                                    @if(isset($interpreterMeta['accepted_fields']))
+                                                        <span><b>Accepted fields</b>{{ $interpreterMeta['accepted_fields'] }} / {{ $interpreterMeta['submitted_fields'] ?? '—' }}</span>
+                                                    @endif
+                                                    @if(isset($interpreterMeta['average_confidence']) && $interpreterMeta['average_confidence'] !== null)
+                                                        <span><b>Confidence</b>{{ round(((float) $interpreterMeta['average_confidence']) * 100) }}%</span>
+                                                    @endif
+                                                    @if(!empty($interpreterMeta['languages']))
+                                                        <span><b>Language(s)</b>{{ implode(', ', (array) $interpreterMeta['languages']) }}</span>
+                                                    @endif
+                                                    @if(isset($interpreterMeta['canonical_competencies_extracted']))
+                                                        <span><b>Canonical evidence</b>{{ $interpreterMeta['canonical_competencies_extracted'] }} extracted</span>
+                                                    @endif
+                                                    <span><b>Scoring</b>Deterministic</span>
+                                                    @if(!empty($interpreterMeta['response_model_version']))
+                                                        <span><b>Response model</b>{{ $interpreterMeta['response_model_version'] }}</span>
+                                                    @endif
+                                                    @if(isset($interpreterMeta['total_token_count']) && $interpreterMeta['total_token_count'] !== null)
+                                                        <span><b>Tokens</b>{{ $interpreterMeta['total_token_count'] }}</span>
+                                                    @endif
+                                                </div>
+                                                @if(!empty($interpreterMeta['reason']))
+                                                    <div class="ai-trace-reason {{ $interpreterIsAi ? '' : 'warn' }}">
+                                                        <b>{{ $interpreterIsAi ? 'Note' : 'Fallback reason' }}:</b> {{ $interpreterMeta['reason'] }}
+                                                    </div>
+                                                @endif
+                                            </details>
+                                        @endif
                                         <div class="fit {{ $fitClass($result?->fit_label) }} mt-2">{{ $result?->fit_label ?? 'Not assessed' }}</div>
                                         @if($requiredFailed > 0)
                                             <button class="btn btn-link candidate-meta mt-1 text-danger fw-semibold p-0 text-decoration-none text-start required-gap-toggle"

@@ -10,6 +10,7 @@ use App\Models\JobVacancy;
 use App\Models\JobVacancyQualification;
 use App\Models\Position;
 use App\Services\AssessmentInsightService;
+use App\Services\StaticEmploymentFormService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -18,6 +19,8 @@ class ItSpecialistSampleApplicantsSeeder extends Seeder
 {
     public function run(): void
     {
+        app(StaticEmploymentFormService::class)->syncToDatabase();
+
         $position = Position::query()
             ->where('name', 'IT SPECIALIST')
             ->with('department')
